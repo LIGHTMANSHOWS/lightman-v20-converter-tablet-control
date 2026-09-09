@@ -10,4 +10,7 @@
 - Manifiesto portátil V4 con 52 elementos, 15 rutas y 20 223 píxeles visibles.
 - Orientaciones vigentes de banderas, techo, ondas, árbol y casa.
 - Contrato y ejemplo independiente para el desarrollador de Motion Tracking.
-
+- Segundo servidor web en el puerto 8781 para la experiencia pública del cliente.
+- Catálogo de siete experiencias con nombres comerciales y categorías.
+- Separación estricta: el cliente no recibe IPs, rutas, playlists ni controles
+  técnicos del operador.

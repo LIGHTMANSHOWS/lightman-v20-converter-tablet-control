@@ -1,4 +1,4 @@
-# 6. Servidor de tablet y API actual
+# 6. Servidor interno de operador y API actual
 
 ## Topología
 
@@ -13,7 +13,9 @@ La IP de la propia tablet no se configura en V20. El programa muestra la direcci
 preferida de la laptop; actualmente prioriza una IPv4 dentro de `192.168.1.0/24`.
 
 El navegador de la tablet sirve `tablet.html`, `tablet.css` y `tablet.js` desde la
-misma aplicación. No existe un servidor independiente que deba instalarse.
+misma aplicación. Ésta es la superficie interna del operador. La versión pública
+para el cliente usa el segundo servidor descrito en
+[`10-SERVIDOR-CLIENTE.md`](10-SERVIDOR-CLIENTE.md).
 
 ## Endpoints implementados
 

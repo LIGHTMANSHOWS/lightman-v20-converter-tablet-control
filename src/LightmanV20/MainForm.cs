@@ -10,6 +10,7 @@ namespace LightmanZapravka3D;
 internal sealed class MainForm : Form
 {
     private const int TabletPort = 8780;
+    private const int ClientPort = 8781;
     private readonly ArtNetReceiver _artNet = new();
     private readonly LiveEngine _live;
     private readonly XScheduleController _scheduler;
@@ -17,16 +18,19 @@ internal sealed class MainForm : Form
     private readonly System.Windows.Forms.Timer _frameTimer = new() { Interval = 33 };
     private readonly Label _status = new() { AutoSize = false, Width = 270, Dock = DockStyle.Right,
         TextAlign = ContentAlignment.MiddleRight, ForeColor = Color.FromArgb(167, 184, 200) };
-    private readonly Label _tabletUrl = new() { AutoSize = false, Width = 275, Dock = DockStyle.Right,
-        TextAlign = ContentAlignment.MiddleRight, ForeColor = Color.FromArgb(96, 224, 190) };
+    private readonly Label _tabletUrl = new() { AutoSize = false, Width = 410, Dock = DockStyle.Right,
+        TextAlign = ContentAlignment.MiddleRight, ForeColor = Color.FromArgb(96, 224, 190),
+        Font = new Font("Segoe UI", 8.5f) };
     private readonly Dictionary<string, Button> _sourceButtons = new(StringComparer.OrdinalIgnoreCase);
     private readonly Button _testButton = MakeButton("TEST GENERAL");
     private TabletServer? _tablet;
+    private ClientExperienceServer? _client;
     private bool _webReady;
     private string _source = "resolume";
     private bool _generalTest;
     private string _receiverError = "";
     private string _tabletError = "";
+    private string _clientError = "";
     private long _previousPackets;
     private DateTime _previousRateUtc = DateTime.UtcNow;
     private double _packetRate;
@@ -145,15 +149,29 @@ internal sealed class MainForm : Form
                     _tablet = new TabletServer(webFolder, TabletPort, TabletState, SelectSource, SetGeneralTest,
                         PlayShow, PauseShow, StopShow);
                     _tablet.Start();
-                    _tabletUrl.Text = "TABLET  " + TabletAddress();
                 }
                 catch (Exception ex)
                 {
                     _tablet?.Dispose();
                     _tablet = null;
                     _tabletError = ex.Message;
-                    _tabletUrl.Text = "TABLET NO DISPONIBLE";
                 }
+
+                try
+                {
+                    _client = new ClientExperienceServer(webFolder, ClientPort, ClientExperienceState, PlayShow);
+                    _client.Start();
+                }
+                catch (Exception ex)
+                {
+                    _client?.Dispose();
+                    _client = null;
+                    _clientError = ex.Message;
+                }
+
+                string internalAddress = _tablet is null ? "INTERNO NO DISPONIBLE" : "INTERNO  " + ServerAddress(TabletPort);
+                string clientAddress = _client is null ? "CLIENTE NO DISPONIBLE" : "CLIENTE  " + ServerAddress(ClientPort);
+                _tabletUrl.Text = internalAddress + Environment.NewLine + clientAddress;
             }
             else _tabletUrl.Text = "VISTA SIN RED";
             // Start physical output only after the monitor itself is ready.
@@ -322,6 +340,7 @@ internal sealed class MainForm : Form
                 sender = _activeSender,
                 error = _receiverError.Length > 0 ? _receiverError : _liveError,
                 tabletError = _tabletError,
+                clientError = _clientError,
                 scheduler = new
                 {
                     configured = scheduler.Configured,
@@ -338,6 +357,16 @@ internal sealed class MainForm : Form
                     tracking = "IP LAN de V20:6454" },
             };
         }
+    }
+
+    private object ClientExperienceState()
+    {
+        var scheduler = _scheduler.GetStatus();
+        return new
+        {
+            experiences = _scheduler.ExperiencesForClient(),
+            activeExperienceId = _scheduler.ExperienceIdForPlaylist(scheduler.Playlist),
+        };
     }
 
     private void RefreshControls()
@@ -361,7 +390,7 @@ internal sealed class MainForm : Form
         _ => "Resolume",
     };
 
-    private static string TabletAddress()
+    private static string ServerAddress(int port)
     {
         var addresses = NetworkInterface.GetAllNetworkInterfaces()
             .Where(n => n.OperationalStatus == OperationalStatus.Up)
@@ -379,7 +408,7 @@ internal sealed class MainForm : Form
                 return b[0] == 10 || b[0] == 172 && b[1] is >= 16 and <= 31 || b[0] == 192 && b[1] == 168;
             })
             ?? addresses.FirstOrDefault();
-        return address is null ? $"http://IP-DE-ESTA-PC:{TabletPort}" : $"http://{address}:{TabletPort}";
+        return address is null ? $"http://IP-DE-ESTA-PC:{port}" : $"http://{address}:{port}";
     }
 
     private void LoadSettings()
@@ -407,6 +436,7 @@ internal sealed class MainForm : Form
     {
         _frameTimer.Stop();
         _tablet?.Dispose();
+        _client?.Dispose();
         _scheduler.Dispose();
         _live.Dispose();
         _artNet.Dispose();

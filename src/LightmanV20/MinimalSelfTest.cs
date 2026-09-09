@@ -437,6 +437,160 @@ internal static class MinimalSelfTest
             Check(http.GetStringAsync("/").GetAwaiter().GetResult().Contains("CONTROL DEL SHOW"), "página de tablet incluida");
         }
 
+        const string clientSecret = "SECRETO-OPERATIVO-192.168.1.91-C:\\shows\\privado.fseq";
+        int clientPlayCalls = 0;
+        string clientPlayedValue = "";
+        var clientCatalogState = new
+        {
+            experiences = new object[]
+            {
+                new
+                {
+                    id = "ritmo-de-luz",
+                    publicTitle = "Ritmo de Luz",
+                    category = "Visual",
+                    tagline = "Color y movimiento para comenzar.",
+                    publicEnabled = true,
+                    enabled = true,
+                    playlist = "PLAYLIST TECNICA INTERNA",
+                    sequence = clientSecret,
+                    audio = "C:\\shows\\privado.wav",
+                    note = "NOTA TECNICA INTERNA",
+                    source = "xlights",
+                    ip = "192.168.1.91",
+                    error = clientSecret,
+                },
+                new
+                {
+                    id = "experiencia-con-error",
+                    publicTitle = "Experiencia Reservada",
+                    category = "Especial",
+                    tagline = "Prueba de error saneado.",
+                    publicEnabled = true,
+                    enabled = true,
+                },
+                new
+                {
+                    id = "experiencia-oculta",
+                    publicTitle = "Nombre que no debe publicarse",
+                    category = "Interna",
+                    tagline = "Contenido privado.",
+                    publicEnabled = false,
+                    enabled = true,
+                },
+            },
+            activeExperienceId = "ritmo-de-luz",
+            source = "tracking",
+            sender = "192.168.1.50",
+            endpoints = new { tracking = "192.168.1.50:6454" },
+            error = clientSecret,
+        };
+
+        using (var internalServer = new TabletServer(web, 0,
+                   () => new { source = "resolume", generalTest = false }, _ => true, _ => true))
+        using (var clientServer = new ClientExperienceServer(web, 0, () => clientCatalogState, value =>
+               {
+                   clientPlayedValue = value;
+                   Interlocked.Increment(ref clientPlayCalls);
+                   return value == "experiencia-con-error"
+                       ? TabletActionResult.Fail(clientSecret)
+                       : TabletActionResult.Success();
+               }))
+        {
+            internalServer.Start();
+            clientServer.Start();
+            Check(internalServer.ListeningPort != clientServer.ListeningPort,
+                "servidores interno y cliente escuchan simultáneamente en puertos separados");
+
+            using var internalHttp = new HttpClient
+                { BaseAddress = new Uri($"http://127.0.0.1:{internalServer.ListeningPort}") };
+            using var clientHttp = new HttpClient
+                { BaseAddress = new Uri($"http://127.0.0.1:{clientServer.ListeningPort}") };
+
+            Check(internalHttp.GetStringAsync("/").GetAwaiter().GetResult().Contains("CONTROL DEL SHOW") &&
+                  clientHttp.GetStringAsync("/").GetAwaiter().GetResult().Contains("¿Qué experiencia quieres vivir hoy?"),
+                "cada servidor entrega exclusivamente su interfaz");
+            Check(clientHttp.GetStringAsync("/client.css").GetAwaiter().GetResult().Contains("experience-grid") &&
+                  clientHttp.GetStringAsync("/client.js").GetAwaiter().GetResult().Contains("/api/experience/play"),
+                "portal cliente incluye sus recursos CSS y JavaScript");
+
+            string publicPayload = clientHttp.GetStringAsync("/api/experiences").GetAwaiter().GetResult();
+            using (var publicJson = JsonDocument.Parse(publicPayload))
+            {
+                var publicRoot = publicJson.RootElement;
+                var publicExperiences = publicRoot.GetProperty("experiences").EnumerateArray().ToArray();
+                var expectedPublicFields = new HashSet<string>(
+                    ["id", "publicTitle", "category", "tagline"], StringComparer.Ordinal);
+                Check(publicExperiences.Length == 2 &&
+                      publicExperiences[0].GetProperty("id").GetString() == "ritmo-de-luz" &&
+                      publicExperiences[0].GetProperty("publicTitle").GetString() == "Ritmo de Luz" &&
+                      publicExperiences[0].EnumerateObject().Select(p => p.Name).ToHashSet(StringComparer.Ordinal)
+                          .SetEquals(expectedPublicFields) &&
+                      publicRoot.GetProperty("activeExperienceId").GetString() == "ritmo-de-luz",
+                    "API cliente publica sólo el contrato comercial y el ID activo");
+            }
+            string[] privateFields = ["playlist", "sequence", "audio", "note", "source", "sender", "endpoints", "ip", "error"];
+            Check(privateFields.All(field => !publicPayload.Contains($"\"{field}\"", StringComparison.OrdinalIgnoreCase)) &&
+                  !publicPayload.Contains("SECRETO-OPERATIVO", StringComparison.Ordinal) &&
+                  !publicPayload.Contains("Nombre que no debe publicarse", StringComparison.Ordinal),
+                "API cliente no filtra configuración, red, errores ni experiencias ocultas");
+
+            using var clientPlayResponse = clientHttp.PostAsync("/api/experience/play",
+                new StringContent("{\"id\":\"ritmo-de-luz\"}", Encoding.UTF8, "application/json")).GetAwaiter().GetResult();
+            Check(clientPlayResponse.IsSuccessStatusCode && clientPlayCalls == 1 && clientPlayedValue == "ritmo-de-luz",
+                "portal cliente ejecuta únicamente un ID publicado");
+
+            using var unknownExperience = clientHttp.PostAsync("/api/experience/play",
+                new StringContent("{\"id\":\"no-existe\"}", Encoding.UTF8, "application/json")).GetAwaiter().GetResult();
+            using var hiddenExperience = clientHttp.PostAsync("/api/experience/play",
+                new StringContent("{\"id\":\"experiencia-oculta\"}", Encoding.UTF8, "application/json")).GetAwaiter().GetResult();
+            Check((int)unknownExperience.StatusCode == 400 && (int)hiddenExperience.StatusCode == 400 && clientPlayCalls == 1,
+                "portal cliente rechaza IDs desconocidos u ocultos sin ejecutar acciones");
+
+            using var failedExperience = clientHttp.PostAsync("/api/experience/play",
+                new StringContent("{\"id\":\"experiencia-con-error\"}", Encoding.UTF8, "application/json")).GetAwaiter().GetResult();
+            string failedPayload = failedExperience.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+            Check((int)failedExperience.StatusCode == 503 && clientPlayCalls == 2 &&
+                  !failedPayload.Contains("SECRETO-OPERATIVO", StringComparison.Ordinal),
+                "portal cliente oculta errores técnicos devueltos por el controlador");
+
+            var blockedPaths = new[]
+            {
+                ("/api/source", "{\"source\":\"tracking\"}"),
+                ("/api/test", "{\"enabled\":true}"),
+                ("/api/show/play", "{\"id\":\"skeewiff\"}"),
+                ("/api/show/pause", "{}"),
+                ("/api/show/stop", "{}"),
+            };
+            var blockedStatuses = new List<int>();
+            foreach (var (path, body) in blockedPaths)
+            {
+                using var blocked = clientHttp.PostAsync(path,
+                    new StringContent(body, Encoding.UTF8, "application/json")).GetAwaiter().GetResult();
+                blockedStatuses.Add((int)blocked.StatusCode);
+            }
+            using var internalAsset = clientHttp.GetAsync("/tablet.js").GetAwaiter().GetResult();
+            Check(blockedStatuses.All(status => status == 404) && (int)internalAsset.StatusCode == 404 && clientPlayCalls == 2,
+                "servidor cliente no expone acciones ni recursos del control interno");
+
+            using var wrongType = clientHttp.PostAsync("/api/experience/play",
+                new StringContent("{\"id\":\"ritmo-de-luz\"}", Encoding.UTF8, "text/plain")).GetAwaiter().GetResult();
+            using var malformed = clientHttp.PostAsync("/api/experience/play",
+                new StringContent("{", Encoding.UTF8, "application/json")).GetAwaiter().GetResult();
+            using var foreignClientRequest = new HttpRequestMessage(HttpMethod.Post, "/api/experience/play")
+            {
+                Content = new StringContent("{\"id\":\"ritmo-de-luz\"}", Encoding.UTF8, "application/json")
+            };
+            foreignClientRequest.Headers.Add("Origin", "https://sitio-ajeno.invalid");
+            using var foreignClientResponse = clientHttp.Send(foreignClientRequest);
+            using var optionsRequest = new HttpRequestMessage(HttpMethod.Options, "/api/experience/play");
+            using var optionsResponse = clientHttp.Send(optionsRequest);
+            Check((int)wrongType.StatusCode == 415 && (int)malformed.StatusCode == 400 &&
+                  (int)foreignClientResponse.StatusCode == 403 && (int)optionsResponse.StatusCode == 403 &&
+                  clientPlayCalls == 2,
+                "API cliente rechaza tipo, JSON, origen y preflight no autorizados");
+        }
+
         File.WriteAllLines(Path.Combine(AppContext.BaseDirectory, "SELFTEST-MINIMAL.txt"), Results);
     }
 }

@@ -19,12 +19,15 @@ ENTRADAS ART-NET
 - Motion Tracking desde otra PC: enviar a la IP LAN que muestra V20, UDP 6454.
 - Motion Tracking local para pruebas: 127.0.0.4, UDP 6454.
 
-CONTROL DESDE TABLET
+DOS SERVIDORES PARA TABLET
 - Conecta la tablet al mismo router.
-- Abre la dirección TABLET que aparece arriba a la derecha en V20.
-- Puerto HTTP: 8780.
-- La página permite solamente seleccionar la fuente y activar/detener TEST GENERAL.
-- Usa esta página sólo dentro de la red privada del show.
+- INTERNO (operador): http://IP-DE-V20:8780
+  Permite seleccionar fuente, test general y control técnico de xSchedule.
+- CLIENTE (experiencias): http://IP-DE-V20:8781
+  Muestra sólo categorías, nombres comerciales y el botón para iniciar cada show.
+- Ambas direcciones aparecen arriba a la derecha en V20.
+- Ninguno de los dos puertos debe exponerse a Internet; úsalos sólo en la red
+  privada del show.
 
 SALIDAS FIJAS
 - Banderas: 192.168.1.201–205 y 192.168.1.207, LMP3 UDP 7777, IDs 1–5 y 7.

@@ -7,6 +7,10 @@ internal sealed class ShowLaunchDefinition
 {
     public string Id { get; init; } = "";
     public string Title { get; init; } = "";
+    public string PublicTitle { get; init; } = "";
+    public string Category { get; init; } = "Experiencias";
+    public string Tagline { get; init; } = "";
+    public bool ClientVisible { get; init; } = true;
     public string Playlist { get; init; } = "";
     public string Sequence { get; init; } = "";
     public string Audio { get; init; } = "";
@@ -92,6 +96,20 @@ internal sealed class XScheduleController : IDisposable
         ready = File.Exists(ExpandPath(show.Sequence)) && File.Exists(ExpandPath(show.Audio)),
         note = show.Note,
     }).Cast<object>().ToArray();
+
+    public object[] ExperiencesForClient() => _settings.Shows
+        .Where(show => show.ClientVisible && !string.IsNullOrWhiteSpace(show.PublicTitle))
+        .Select(show => new
+        {
+            id = show.Id,
+            publicTitle = show.PublicTitle,
+            category = string.IsNullOrWhiteSpace(show.Category) ? "Experiencias" : show.Category,
+            tagline = show.Tagline,
+            enabled = show.Enabled && File.Exists(ExpandPath(show.Sequence)) && File.Exists(ExpandPath(show.Audio)),
+        }).Cast<object>().ToArray();
+
+    public string ExperienceIdForPlaylist(string playlist) => _settings.Shows
+        .FirstOrDefault(show => show.ClientVisible && show.Playlist.Equals(playlist, StringComparison.OrdinalIgnoreCase))?.Id ?? "";
 
     public XScheduleStatus GetStatus(bool force = false)
     {
@@ -220,6 +238,8 @@ internal sealed class XScheduleController : IDisposable
             throw new InvalidDataException("Los IDs de shows deben existir y ser únicos.");
         if (settings.Shows.Any(s => string.IsNullOrWhiteSpace(s.Playlist)))
             throw new InvalidDataException("Cada show necesita el nombre exacto de su playlist.");
+        if (settings.Shows.Any(s => s.ClientVisible && string.IsNullOrWhiteSpace(s.PublicTitle)))
+            throw new InvalidDataException("Cada experiencia visible al cliente necesita publicTitle.");
     }
 
     private static Uri NormalizeBaseAddress(string value)

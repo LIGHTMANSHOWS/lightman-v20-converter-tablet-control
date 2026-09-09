@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#070912">
+  <meta name="description" content="Elige la experiencia de luz que quieres vivir hoy.">
+  <title>Lightman Experiences</title>
+  <link rel="stylesheet" href="/client.css">
+</head>
+<body>
+  <div class="ambient-light ambient-light--one" aria-hidden="true"></div>
+  <div class="ambient-light ambient-light--two" aria-hidden="true"></div>
+
+  <main class="experience-app">
+    <header class="topbar">
+      <a class="brand" href="/client.html" aria-label="Lightman Experiences, inicio">
+        <span class="brand__mark" aria-hidden="true">L</span>
+        <span class="brand__name">LIGHTMAN <b>EXPERIENCES</b></span>
+      </a>
+      <div class="availability" id="availability" role="status">
+        <span class="availability__dot" aria-hidden="true"></span>
+        <span id="availability-label">Preparando</span>
+      </div>
+    </header>
+
+    <section class="welcome" aria-labelledby="page-title">
+      <p class="eyebrow">ELIGE TU MOMENTO</p>
+      <h1 id="page-title">¿Qué experiencia quieres vivir hoy?</h1>
+      <p class="welcome__hint">Explora las categorías y toca una experiencia para comenzar.</p>
+    </section>
+
+    <nav class="category-nav" aria-label="Categorías de experiencias">
+      <div id="categories" class="category-list"></div>
+    </nav>
+
+    <section class="catalog-section" aria-labelledby="catalog-title">
+      <div class="catalog-heading">
+        <div>
+          <p class="eyebrow">EXPERIENCIAS</p>
+          <h2 id="catalog-title">Todas</h2>
+        </div>
+        <p class="action-status" id="action-status" aria-live="polite">Buscando experiencias…</p>
+      </div>
+
+      <div id="catalog" class="experience-grid" aria-busy="true">
+        <div class="skeleton" aria-hidden="true"></div>
+        <div class="skeleton" aria-hidden="true"></div>
+        <div class="skeleton" aria-hidden="true"></div>
+      </div>
+
+      <div id="empty-state" class="empty-state" hidden>
+        <p id="empty-message">No hay experiencias disponibles en esta categoría.</p>
+        <button id="retry" class="retry-button" type="button" hidden>Volver a intentar</button>
+      </div>
+    </section>
+
+    <footer>
+      <span>LIGHTMAN</span>
+      <span aria-hidden="true">·</span>
+      <span>Momentos hechos de luz</span>
+    </footer>
+  </main>
+
+  <dialog id="success-dialog" class="success-dialog" aria-labelledby="success-title">
+    <div class="success-dialog__glow" aria-hidden="true">✦</div>
+    <p class="eyebrow">TODO LISTO</p>
+    <h2 id="success-title">La experiencia comenzó</h2>
+    <p id="success-message">Disfruta el momento.</p>
+    <form method="dialog">
+      <button class="dialog-button" type="submit">Elegir otra experiencia</button>
+    </form>
+  </dialog>
+
+  <noscript>
+    <p class="noscript-message">Activa JavaScript para elegir una experiencia.</p>
+  </noscript>
+  <script src="/client.js" defer></script>
+</body>
+</html>

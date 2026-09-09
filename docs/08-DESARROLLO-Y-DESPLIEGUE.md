@@ -37,6 +37,8 @@ Los scripts no activan salidas físicas. El self-test usa memoria o loopback.
 - [ ] Pasa el verificador independiente del paquete.
 - [ ] Las dos copias del manifiesto tienen el mismo SHA-256.
 - [ ] La tablet sigue mostrando estado real, no estado supuesto.
+- [ ] El publicado contiene `Web/client.html`, `client.css` y `client.js`.
+- [ ] El puerto 8781 no sirve ninguna ruta ni dato técnico del puerto 8780.
 - [ ] Resolume, xLights y Tracking permanecen aislados.
 - [ ] El cambio no añade un destino físico al software fuente.
 - [ ] La prueba física se realizó aparte y con brillo limitado.

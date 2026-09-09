@@ -2,9 +2,9 @@
 
 Repositorio fuente del puente LIGHTMAN V20. Recibe una sola fuente Art-Net activa
 (Resolume, xLights o Motion Tracking), muestra exactamente el cuadro seleccionado y
-lo redistribuye a los controladores del montaje. La tablet se conecta únicamente a
-V20 y desde allí selecciona la fuente, ejecuta el test general y controla los shows
-de xSchedule.
+lo redistribuye a los controladores del montaje. V20 publica dos superficies web
+separadas: una consola interna para el operador y una experiencia sencilla para el
+cliente. Ambas se conectan únicamente a V20; xSchedule nunca se expone a la tablet.
 
 > Estado de referencia: manifiesto V4
 > `V20-MINIMAL-4-PORTABLE-VISUAL-BRIDGE`, actualizado el 8 de septiembre de 2026.
@@ -16,10 +16,14 @@ Resolume 127.0.0.2 ─┐
 xLights  127.0.0.3 ─┼─ Art-Net U0–U124 ─► V20 ─┬─ LMP3 ─► banderas Wi-Fi
 Tracking por LAN ───┘                           └─ Art-Net ─► .91 / .92 / .93
                                       ▲
-                                      │ HTTP :8780
-                                    Tablet
+                         ┌────────────┴────────────┐
+                         │                         │
+              Operador HTTP :8780       Cliente HTTP :8781
+              fuente / test / show       catálogo comercial / iniciar
+                         │                         │
+                         └──────────── V20 ────────┘
                                       │
-                                      └─► V20 ─► xSchedule localhost :80
+                                      └─► xSchedule localhost :80
 ```
 
 V20 es el único componente que conoce las salidas físicas. El software de Motion
@@ -75,18 +79,20 @@ los errores del mapeo antiguo, consume `element_id`, `route_id` y la LUT complet
 `visual.pixel_mapping.route_pixel_indices`; no vuelvas a aplicar offsets, snake,
 giros ni espejos.
 
-La API actual de la tablet está documentada en
-[`docs/06-TABLET-API.md`](docs/06-TABLET-API.md). Los botones internos de modos de
+Las dos interfaces y sus límites están documentados en
+[`docs/06-TABLET-API.md`](docs/06-TABLET-API.md) y
+[`docs/10-SERVIDOR-CLIENTE.md`](docs/10-SERVIDOR-CLIENTE.md). Los botones internos de modos de
 tracking son una extensión planificada: el contrato de coordinación está en
 [`docs/09-CONTRATO-MODOS-TRACKING.md`](docs/09-CONTRATO-MODOS-TRACKING.md), pero
 todavía no se debe asumir que esos endpoints existen en V20.
 
 ## Alcance y seguridad
 
-- El servidor de tablet está pensado únicamente para la LAN privada del montaje.
-- La revisión actual no usa autenticación HTTP; cualquier equipo autorizado en esa
-  LAN puede consultar el estado y un cliente sin `Origin` podría invocar comandos.
-  No debe exponerse el puerto 8780 a Internet ni a una red de invitados.
+- Los servidores de operador y cliente están pensados únicamente para la LAN
+  privada del montaje.
+- La revisión actual no usa autenticación HTTP. El puerto 8781 reduce su superficie
+  a catálogo comercial e inicio por ID, pero cualquier equipo de la LAN podría
+  invocarlo. No expongas 8780 ni 8781 a Internet o a una red de invitados.
 - No hay grabación de escenas ni persistencia de contenido.
 - No abras dos copias de V20: ambas competirían por UDP 6454.
 - No publiques ejecutables, audios, shows ni perfiles WebView2 en el repositorio.
