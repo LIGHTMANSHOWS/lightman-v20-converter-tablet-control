@@ -15,6 +15,7 @@ internal sealed class ShowLaunchDefinition
     public string Sequence { get; init; } = "";
     public string Audio { get; init; } = "";
     public bool Enabled { get; init; } = true;
+    public bool ClientEnabled { get; init; } = true;
     public string Note { get; init; } = "";
 }
 
@@ -105,7 +106,8 @@ internal sealed class XScheduleController : IDisposable
             publicTitle = show.PublicTitle,
             category = string.IsNullOrWhiteSpace(show.Category) ? "Experiencias" : show.Category,
             tagline = show.Tagline,
-            enabled = show.Enabled && File.Exists(ExpandPath(show.Sequence)) && File.Exists(ExpandPath(show.Audio)),
+            enabled = show.ClientEnabled && show.Enabled &&
+                File.Exists(ExpandPath(show.Sequence)) && File.Exists(ExpandPath(show.Audio)),
         }).Cast<object>().ToArray();
 
     public string ExperienceIdForPlaylist(string playlist) => _settings.Shows

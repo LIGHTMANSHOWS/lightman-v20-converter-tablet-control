@@ -17,7 +17,8 @@ playlist y envía Art-Net a la entrada local de xLights de V20 (`127.0.0.3:6454`
 
 ## Catálogo vigente
 
-`shows.json` es la fuente de verdad y actualmente contiene siete shows habilitados:
+`shows.json` es la fuente de verdad y actualmente contiene doce shows habilitados
+para el operador interno. Las playlists instaladas son:
 
 1. `01 · SKEEWIFF`
 2. `02 · SANTA EN ESPAÑOL`
@@ -26,6 +27,15 @@ playlist y envía Art-Net a la entrada local de xLights de V20 (`127.0.0.3:6454`
 5. `05 · MISER BROTHERS`
 6. `06 · HERE COMES SANTA CLAUS`
 7. `07 · SLEIGH RIDE 8-BIT`
+8. `08 · THIS IS HALLOWEEN`
+9. `09 · MY SONGS KNOW WHAT YOU DID IN THE DARK`
+10. `10 · BABY SHARK EDM`
+11. `12 · BELIEVER` — sólo prueba interna; audio aún no aprobado
+12. `13 · UPTOWN FUNK` — sólo prueba interna; audio aún no aprobado
+
+`11 · BLINDING LIGHTS` no se instala ni se habilita porque todavía no existe su
+FSEQ. Las experiencias 12 y 13 permanecen como `Próximamente` en el portal del
+cliente aunque el operador pueda probarlas desde el servidor interno.
 
 Los nombres de las playlists deben coincidir exactamente con el campo `playlist`.
 Las rutas usan `%USERPROFILE%` para no fijar un nombre de usuario; ajústalas en una
@@ -40,4 +50,3 @@ proyectos xLights no se guardan en este repositorio.
 - `PAUSAR / CONTINUAR` conserva la posición; `DETENER` corta la reproducción.
 - La tablet solo se conecta a `http://IP-LAN-DE-V20:8780/`; nunca debe conectarse
   directamente a xSchedule.
-

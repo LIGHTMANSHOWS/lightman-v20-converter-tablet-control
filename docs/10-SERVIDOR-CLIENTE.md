@@ -61,7 +61,8 @@ de llegar a xSchedule. Los errores internos se convierten en un mensaje genéric
 Al 8 de septiembre de 2026, 08–10 están renderizados con audio utilizable. La 11
 no tiene secuencia; la 12 tiene un audio aproximadamente 1,54 s más corto que el
 render; y la 13 necesita la edición Radio Edit de 235,573 s. Por esa razón 11–13
-permanecen deshabilitados aunque sus tarjetas estén en el catálogo.
+permanecen como `Próximamente` para el cliente. El operador interno puede probar
+12 y 13 con esas advertencias; 11 continúa bloqueado porque no tiene FSEQ.
 
 ## Separación de superficies
 

@@ -18,3 +18,5 @@
 - `Noche de Halloween`, `Enciende la Noche` y `Océano Eléctrico` quedan habilitados;
   `Ciudad de Neón`, `Fuerza Imparable` y `Ritmo en la Ciudad` se muestran como
   `Próximamente` hasta completar sus archivos sincronizados.
+- `Fuerza Imparable` y `Ritmo en la Ciudad` quedan desbloqueados exclusivamente
+  en el control interno para pruebas, sin publicarlos como disponibles al cliente.

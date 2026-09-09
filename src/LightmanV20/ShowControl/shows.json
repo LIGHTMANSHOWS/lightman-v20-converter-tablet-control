@@ -144,6 +144,7 @@
       "sequence": "%USERPROFILE%/Desktop/shows xlights/11_BLINDING_LIGHTS_LIGHTMAN/11_BLINDING_LIGHTS_LIGHTMAN.fseq",
       "audio": "%USERPROFILE%/Desktop/shows xlights/11_BLINDING_LIGHTS_LIGHTMAN/The Weeknd - Blinding Lights (Official Audio).mp3",
       "enabled": false,
+      "clientEnabled": false,
       "note": "Próximamente: todavía no existe XSQ/FSEQ adaptado"
     },
     {
@@ -156,8 +157,9 @@
       "playlist": "12 · BELIEVER",
       "sequence": "%USERPROFILE%/Desktop/shows xlights/12_BELIEVER_XATW_2024_LIGHTMAN/12_BELIEVER_XATW_2024_LIGHTMAN.fseq",
       "audio": "%USERPROFILE%/Desktop/shows xlights/12_BELIEVER_XATW_2024_LIGHTMAN/Imagine Dragons - Believer (Audio).mp3",
-      "enabled": false,
-      "note": "Próximamente: el audio actual dura aproximadamente 1,54 s menos que la secuencia"
+      "enabled": true,
+      "clientEnabled": false,
+      "note": "PRUEBA INTERNA: el audio actual dura aproximadamente 1,54 s menos que la secuencia; no aprobado para cliente"
     },
     {
       "id": "uptown-funk",
@@ -169,8 +171,9 @@
       "playlist": "13 · UPTOWN FUNK",
       "sequence": "%USERPROFILE%/Desktop/shows xlights/13_UPTOWN_FUNK_XATW_2025_LIGHTMAN/13_UPTOWN_FUNK_XATW_2025_LIGHTMAN.fseq",
       "audio": "%USERPROFILE%/Desktop/shows xlights/13_UPTOWN_FUNK_XATW_2025_LIGHTMAN/Mark Ronson - Uptown Funk (Official Audio) ft. Bruno Mars.mp3",
-      "enabled": false,
-      "note": "Próximamente: se necesita la edición Radio Edit de 235,573 s"
+      "enabled": true,
+      "clientEnabled": false,
+      "note": "PRUEBA INTERNA: el audio no corresponde a la edición Radio Edit de 235,573 s; no aprobado para cliente"
     }
   ]
 }

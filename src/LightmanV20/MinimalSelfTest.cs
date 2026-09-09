@@ -406,12 +406,27 @@ internal static class MinimalSelfTest
         string web = Path.Combine(AppContext.BaseDirectory, "Web");
         using (var catalog = XScheduleController.Load(Path.Combine(AppContext.BaseDirectory, "ShowControl", "shows.json")))
         {
-            Check(catalog.Shows.Count == 13 && catalog.Shows.Count(show => show.Enabled) == 10,
-                "catálogo V20 contiene diez experiencias listas y tres próximas");
+            Check(catalog.Shows.Count == 13 && catalog.Shows.Count(show => show.Enabled) == 12 &&
+                  catalog.Shows.Count(show => show.ClientEnabled) == 10,
+                "catálogo V20 habilita doce shows internos y conserva diez disponibles al cliente");
             Check(catalog.Shows.Skip(7).Select(show => show.Id).SequenceEqual(new[]
                 { "this-is-halloween", "light-em-up", "baby-shark-edm", "blinding-lights", "believer", "uptown-funk" }) &&
                   catalog.Shows.Skip(7).All(show => show.ClientVisible && !string.IsNullOrWhiteSpace(show.PublicTitle)),
                 "seis proyectos nuevos tienen ID estable y nombre comercial");
+            Check(!catalog.Shows.Single(show => show.Id == "blinding-lights").Enabled &&
+                  new[] { "believer", "uptown-funk" }.All(id =>
+                  {
+                      var show = catalog.Shows.Single(candidate => candidate.Id == id);
+                      return show.Enabled && !show.ClientEnabled && show.Note.Contains("PRUEBA INTERNA", StringComparison.Ordinal);
+                  }),
+                "Believer y Uptown Funk quedan desbloqueados sólo para pruebas internas; Blinding Lights sigue sin FSEQ");
+
+            using var clientCatalog = JsonDocument.Parse(JsonSerializer.Serialize(catalog.ExperiencesForClient(), LiveEngine.Json));
+            var clientItems = clientCatalog.RootElement.EnumerateArray().ToArray();
+            Check(new[] { "believer", "uptown-funk" }.All(id =>
+                      clientItems.Single(item => item.GetProperty("id").GetString() == id)
+                          .GetProperty("enabled").GetBoolean() == false),
+                "portal cliente mantiene Believer y Uptown Funk como Próximamente");
         }
         using (var server = new TabletServer(web, 0, () => new { source = "resolume", generalTest = false },
                    value => { selectedValue = value; Interlocked.Increment(ref selected); return true; },
