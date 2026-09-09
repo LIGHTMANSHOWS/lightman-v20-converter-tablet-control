@@ -16,6 +16,8 @@
 - Los shows lanzados por V20 regresan automáticamente a Resolume al terminar y el
   botón Stop también fuerza ese retorno. Pause conserva xLights y no conmuta la
   fuente.
+- Cada arranque comienza de forma segura en Resolume. Reactivar un mismo modo de
+  Tracking genera una revisión nueva y exige una confirmación nueva del tracker.
 
 ## 2026-09-09 · autoimportación de shows
 

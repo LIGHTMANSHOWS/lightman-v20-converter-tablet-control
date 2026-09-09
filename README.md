@@ -105,7 +105,9 @@ pantalla completa y el botón **Pantalla completa** queda como alternativa.
 La página pública consulta su estado a V20 cada 1,5 segundos. Una selección de
 tracking se muestra como activa únicamente después de que el programa remoto
 confirma el mismo modo y la misma revisión. Al terminar o detener un show lanzado
-por V20, la fuente vuelve a Resolume; una pausa mantiene xLights seleccionado.
+por V20, la fuente vuelve a Resolume; una pausa mantiene xLights seleccionado. Al
+abrir V20, la fuente inicial siempre es Resolume para no restaurar sesiones sin
+confirmación.
 
 ## Alcance y seguridad
 

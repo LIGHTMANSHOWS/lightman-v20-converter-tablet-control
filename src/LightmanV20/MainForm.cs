@@ -213,6 +213,7 @@ internal sealed class MainForm : Form
         {
             var paused = _scheduler.PauseIfPlaying();
             lock (_stateGate) _schedulerActionError = paused.Ok ? "" : paused.Error;
+            if (!paused.Ok) return false;
         }
         _live.SetGeneralTest(false);
         _artNet.ResetAutoSource(source);
@@ -237,6 +238,7 @@ internal sealed class MainForm : Form
         {
             var paused = _scheduler.PauseIfPlaying();
             lock (_stateGate) _schedulerActionError = paused.Ok ? "" : paused.Error;
+            if (!paused.Ok) return false;
         }
         _live.SetGeneralTest(enabled);
         lock (_stateGate) _generalTest = enabled;
@@ -290,7 +292,12 @@ internal sealed class MainForm : Form
             catch { return TrackingModeSelectionResult.Fail("V20 no pudo seleccionar el modo de tracking.", 0); }
         }
 
-        var result = _tracking.SelectMode(id);
+        string previousSource;
+        lock (_stateGate) previousSource = _source;
+        var trackingState = _tracking.GetStateSnapshot();
+        bool requireFreshAck = previousSource != "tracking" || !trackingState.Connected ||
+            trackingState.Status == "error";
+        var result = _tracking.SelectMode(id, requireFreshAck);
         if (!result.Ok) return result;
         if (SelectSource("tracking")) return result;
         return TrackingModeSelectionResult.Fail("V20 no pudo seleccionar Motion Tracking.", result.Revision);
@@ -529,13 +536,9 @@ internal sealed class MainForm : Form
 
     private void LoadSettings()
     {
-        try
-        {
-            if (!File.Exists(SettingsPath)) return;
-            var saved = JsonSerializer.Deserialize<MinimalSettings>(File.ReadAllText(SettingsPath), LiveEngine.Json);
-            if (saved?.Source is "resolume" or "xlights" or "tracking") _source = saved.Source;
-        }
-        catch { }
+        // Una fuente restaurada no puede reconstruir de forma segura la sesión
+        // de xSchedule ni el ACK del tracker. Cada arranque comienza en Resolume.
+        _source = "resolume";
     }
 
     private void SaveSettings()

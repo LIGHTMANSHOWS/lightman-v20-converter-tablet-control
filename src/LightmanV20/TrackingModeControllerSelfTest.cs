@@ -30,19 +30,24 @@ internal static class TrackingModeControllerSelfTest
               controller.GetControlSnapshot() == new TrackingControlSnapshot(1, 1, true, "silhouette"),
             "seleccionar dos veces el mismo modo es idempotente");
 
+        TrackingModeSelectionResult forced = controller.SelectMode("silhouette", forceNewRevision: true);
+        check(forced.Ok && forced.Revision == 2 &&
+              controller.GetStateSnapshot().Status == "offline",
+            "reactivar el mismo modo publica una revisión nueva y exige otro ACK");
+
         TrackingStatusResult stale = controller.ReportStatus(
-            new TrackingStatusUpdate("tracker-main", 0, "silhouette", "running", ""));
+            new TrackingStatusUpdate("tracker-main", 1, "silhouette", "running", ""));
         TrackingStatusResult mismatched = controller.ReportStatus(
-            new TrackingStatusUpdate("tracker-main", 1, "particles", "running", ""));
+            new TrackingStatusUpdate("tracker-main", 2, "particles", "running", ""));
         TrackingStateSnapshot beforeAck = controller.GetStateSnapshot();
-        check(!stale.Ok && stale.Revision == 1 && !mismatched.Ok &&
+        check(!stale.Ok && stale.Revision == 2 && !mismatched.Ok &&
               beforeAck.ActiveMode == "" && !beforeAck.Connected && beforeAck.Status == "offline",
             "ACK obsoleto o de otro modo no cambia el estado confirmado");
 
         TrackingStatusResult accepted = controller.ReportStatus(
-            new TrackingStatusUpdate("tracker-main", 1, "silhouette", "running", ""));
+            new TrackingStatusUpdate("tracker-main", 2, "silhouette", "running", ""));
         TrackingStateSnapshot running = controller.GetStateSnapshot();
-        check(accepted.Ok && accepted.Revision == 1 && running.Configured && running.Connected &&
+        check(accepted.Ok && accepted.Revision == 2 && running.Configured && running.Connected &&
               running.Status == "running" && running.DesiredMode == "silhouette" &&
               running.ActiveMode == "silhouette" && running.LastSeenUtc == now && running.Error == "" &&
               running.Modes.Select(mode => mode.Id).SequenceEqual(new[] { "silhouette", "particles" }),
@@ -58,10 +63,10 @@ internal static class TrackingModeControllerSelfTest
             "heartbeat vencido publica offline sin inventar ni borrar el último ACK");
 
         TrackingModeSelectionResult second = controller.SelectMode("particles");
-        check(second.Ok && second.Revision == 2 && controller.GetControlSnapshot().DesiredMode == "particles",
+        check(second.Ok && second.Revision == 3 && controller.GetControlSnapshot().DesiredMode == "particles",
             "un modo distinto publica exactamente una nueva revisión");
         TrackingStatusResult secondAck = controller.ReportStatus(
-            new TrackingStatusUpdate("tracker-main", 2, "particles", "degraded", "Cámara sin profundidad"));
+            new TrackingStatusUpdate("tracker-main", 3, "particles", "degraded", "Cámara sin profundidad"));
         TrackingStateSnapshot degraded = controller.GetStateSnapshot();
         check(secondAck.Ok && degraded.Connected && degraded.Status == "degraded" &&
               degraded.ActiveMode == "particles" && degraded.Error == "Cámara sin profundidad",
@@ -71,7 +76,7 @@ internal static class TrackingModeControllerSelfTest
         using var controlDocument = JsonDocument.Parse(controlJson);
         JsonElement root = controlDocument.RootElement;
         check(root.GetProperty("apiVersion").GetInt32() == 1 &&
-              root.GetProperty("revision").GetInt64() == 2 &&
+              root.GetProperty("revision").GetInt64() == 3 &&
               root.GetProperty("selected").GetBoolean() &&
               root.GetProperty("desiredMode").GetString() == "particles",
             "snapshot de control serializa exactamente los campos acordados en camelCase");

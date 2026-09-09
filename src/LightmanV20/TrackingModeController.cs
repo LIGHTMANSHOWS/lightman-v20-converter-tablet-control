@@ -132,7 +132,9 @@ internal sealed class TrackingModeController
         return new TrackingModeController(catalog.Modes, heartbeatTimeout, utcNow);
     }
 
-    internal TrackingModeSelectionResult SelectMode(string? id)
+    internal TrackingModeSelectionResult SelectMode(string? id) => SelectMode(id, forceNewRevision: false);
+
+    internal TrackingModeSelectionResult SelectMode(string? id, bool forceNewRevision)
     {
         if (!TryNormalizeModeId(id, out string normalized) ||
             !_modesById.TryGetValue(normalized, out var mode) || !mode.Enabled)
@@ -143,7 +145,7 @@ internal sealed class TrackingModeController
 
         lock (_gate)
         {
-            if (string.Equals(_desiredMode, normalized, StringComparison.Ordinal))
+            if (!forceNewRevision && string.Equals(_desiredMode, normalized, StringComparison.Ordinal))
                 return TrackingModeSelectionResult.Success(normalized, _revision);
 
             checked { _revision++; }
