@@ -36,6 +36,15 @@ con seguridad entre un programa cerrado y uno abierto con cambios sin guardar. E
 informe pide abrir xSchedule y volver a iniciar V20. V20 nunca inicia, cierra, mata
 ni reproduce nada en xSchedule como parte de esta sincronización.
 
+Para ejecutar solamente el descubrimiento y la sincronización, sin abrir la interfaz
+ni iniciar el puente físico:
+
+```powershell
+LightmanV20Minimal.exe --sync-shows
+```
+
+El resultado queda en `SYNC-SHOWS.json`, junto al ejecutable.
+
 ## Casos omitidos
 
 No se crea una playlist cuando falta FSEQ o audio, el FSEQ está truncado, los
