@@ -4,8 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#070912">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="application-name" content="Lightman">
   <meta name="description" content="Elige la experiencia de luz que quieres vivir hoy.">
   <title>Lightman Experiences</title>
+  <link rel="manifest" href="/client.webmanifest">
+  <link rel="icon" href="/client-icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/client.css">
 </head>
 <body>
@@ -18,16 +24,38 @@
         <span class="brand__mark" aria-hidden="true">L</span>
         <span class="brand__name">LIGHTMAN <b>EXPERIENCES</b></span>
       </a>
-      <div class="availability" id="availability" role="status">
-        <span class="availability__dot" aria-hidden="true"></span>
-        <span id="availability-label">Preparando</span>
+      <div class="topbar__actions">
+        <div class="availability" id="availability" role="status">
+          <span class="availability__dot" aria-hidden="true"></span>
+          <span id="availability-label">Preparando</span>
+        </div>
+        <button id="fullscreen-toggle" class="fullscreen-button" type="button" aria-label="Abrir en pantalla completa">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M8 3H3v5M16 3h5v5M21 16v5h-5M8 21H3v-5" />
+          </svg>
+          <span id="fullscreen-label">Pantalla completa</span>
+        </button>
       </div>
     </header>
 
     <section class="welcome" aria-labelledby="page-title">
       <p class="eyebrow">ELIGE TU MOMENTO</p>
       <h1 id="page-title">¿Qué experiencia quieres vivir hoy?</h1>
-      <p class="welcome__hint">Explora las categorías y toca una experiencia para comenzar.</p>
+      <p class="welcome__hint">Elige una experiencia o una interacción en vivo.</p>
+    </section>
+
+    <section id="tracking-section" class="tracking-section" aria-labelledby="tracking-title" hidden>
+      <div class="section-heading tracking-heading">
+        <div>
+          <p class="eyebrow">INTERACCIÓN EN VIVO</p>
+          <h2 id="tracking-title">Elige cómo participar</h2>
+        </div>
+        <div id="tracking-status" class="tracking-status" role="status">
+          <span class="tracking-status__dot" aria-hidden="true"></span>
+          <span id="tracking-status-label">Preparando</span>
+        </div>
+      </div>
+      <div id="tracking-modes" class="tracking-modes" aria-busy="false"></div>
     </section>
 
     <nav class="category-nav" aria-label="Categorías de experiencias">
@@ -35,7 +63,7 @@
     </nav>
 
     <section class="catalog-section" aria-labelledby="catalog-title">
-      <div class="catalog-heading">
+      <div class="catalog-heading section-heading">
         <div>
           <p class="eyebrow">EXPERIENCIAS</p>
           <h2 id="catalog-title">Todas</h2>
@@ -64,9 +92,9 @@
 
   <dialog id="success-dialog" class="success-dialog" aria-labelledby="success-title">
     <div class="success-dialog__glow" aria-hidden="true">✦</div>
-    <p class="eyebrow">TODO LISTO</p>
-    <h2 id="success-title">La experiencia comenzó</h2>
-    <p id="success-message">Disfruta el momento.</p>
+    <p class="eyebrow">SOLICITUD RECIBIDA</p>
+    <h2 id="success-title">Preparando la experiencia</h2>
+    <p id="success-message">V20 está iniciando el show.</p>
     <form method="dialog">
       <button class="dialog-button" type="submit">Elegir otra experiencia</button>
     </form>

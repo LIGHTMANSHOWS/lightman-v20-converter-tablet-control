@@ -21,6 +21,9 @@ internal sealed class TabletServer : IDisposable
     private readonly Func<string, TabletActionResult> _playShow;
     private readonly Func<TabletActionResult> _pauseShow;
     private readonly Func<TabletActionResult> _stopShow;
+    private readonly Func<TrackingControlSnapshot>? _trackingControl;
+    private readonly Func<string, TrackingModeSelectionResult>? _selectTrackingMode;
+    private readonly Func<TrackingStatusUpdate, TrackingStatusResult>? _reportTrackingStatus;
     private readonly CancellationTokenSource _stop = new();
     private readonly SemaphoreSlim _handlerSlots = new(12, 12);
     private TcpListener? _listener;
@@ -38,6 +41,17 @@ internal sealed class TabletServer : IDisposable
         Func<string, bool> selectSource, Func<bool, bool> setTest,
         Func<string, TabletActionResult> playShow, Func<TabletActionResult> pauseShow,
         Func<TabletActionResult> stopShow)
+        : this(webFolder, port, state, selectSource, setTest, playShow, pauseShow, stopShow,
+            null, null, null)
+    { }
+
+    public TabletServer(string webFolder, int port, Func<object> state,
+        Func<string, bool> selectSource, Func<bool, bool> setTest,
+        Func<string, TabletActionResult> playShow, Func<TabletActionResult> pauseShow,
+        Func<TabletActionResult> stopShow,
+        Func<TrackingControlSnapshot>? trackingControl,
+        Func<string, TrackingModeSelectionResult>? selectTrackingMode,
+        Func<TrackingStatusUpdate, TrackingStatusResult>? reportTrackingStatus)
     {
         _webFolder = webFolder;
         _port = port;
@@ -47,6 +61,9 @@ internal sealed class TabletServer : IDisposable
         _playShow = playShow;
         _pauseShow = pauseShow;
         _stopShow = stopShow;
+        _trackingControl = trackingControl;
+        _selectTrackingMode = selectTrackingMode;
+        _reportTrackingStatus = reportTrackingStatus;
     }
 
     public int ListeningPort => (_listener?.LocalEndpoint as IPEndPoint)?.Port ?? _port;
@@ -102,6 +119,17 @@ internal sealed class TabletServer : IDisposable
                     await JsonAsync(stream, 200, _state(), token).ConfigureAwait(false);
                     return;
                 }
+                if (method == "GET" && path == "/api/tracking/control")
+                {
+                    if (_trackingControl is null)
+                    {
+                        await JsonAsync(stream, 503,
+                            new { ok = false, error = "Control de tracking no configurado." }, token).ConfigureAwait(false);
+                        return;
+                    }
+                    await JsonAsync(stream, 200, _trackingControl(), token).ConfigureAwait(false);
+                    return;
+                }
                 if (method == "GET" && path == "/health")
                 {
                     await JsonAsync(stream, 200, new { ok = true, service = "LIGHTMAN V20 MINIMAL" }, token).ConfigureAwait(false);
@@ -144,6 +172,82 @@ internal sealed class TabletServer : IDisposable
                         return;
                     }
                     await JsonAsync(stream, 200, new { ok = true, enabled }, token).ConfigureAwait(false);
+                    return;
+                }
+                if (method == "POST" && path == "/api/tracking/mode")
+                {
+                    if (!ValidJsonRequest(headers, out var status, out var error))
+                    {
+                        await JsonAsync(stream, status, new { ok = false, error }, token).ConfigureAwait(false);
+                        return;
+                    }
+                    if (_selectTrackingMode is null)
+                    {
+                        await JsonAsync(stream, 503,
+                            new { ok = false, error = "Control de tracking no configurado." }, token).ConfigureAwait(false);
+                        return;
+                    }
+                    if (!TryParseJsonObject(body, out var json, out error))
+                    {
+                        await JsonAsync(stream, 400, new { ok = false, error }, token).ConfigureAwait(false);
+                        return;
+                    }
+                    using (json)
+                    {
+                        if (!TryReadRequiredString(json.RootElement, "id", 64, false, out string id, out error))
+                        {
+                            await JsonAsync(stream, 400, new { ok = false, error }, token).ConfigureAwait(false);
+                            return;
+                        }
+                        var result = _selectTrackingMode(id);
+                        await JsonAsync(stream, result.Ok ? 200 : 400,
+                            result.Ok
+                                ? new { ok = true, id = result.Id, revision = result.Revision }
+                                : new { ok = false, error = result.Error, revision = result.Revision },
+                            token).ConfigureAwait(false);
+                    }
+                    return;
+                }
+                if (method == "POST" && path == "/api/tracking/status")
+                {
+                    if (!ValidJsonRequest(headers, out var status, out var error))
+                    {
+                        await JsonAsync(stream, status, new { ok = false, error }, token).ConfigureAwait(false);
+                        return;
+                    }
+                    if (_reportTrackingStatus is null)
+                    {
+                        await JsonAsync(stream, 503,
+                            new { ok = false, error = "Control de tracking no configurado." }, token).ConfigureAwait(false);
+                        return;
+                    }
+                    if (!TryParseJsonObject(body, out var json, out error))
+                    {
+                        await JsonAsync(stream, 400, new { ok = false, error }, token).ConfigureAwait(false);
+                        return;
+                    }
+                    using (json)
+                    {
+                        JsonElement root = json.RootElement;
+                        if (!TryReadRequiredString(root, "clientId", 64, false, out string clientId, out error) ||
+                            !TryReadRequiredInt64(root, "revision", out long revision, out error) ||
+                            !TryReadRequiredString(root, "activeMode", 64, false, out string activeMode, out error) ||
+                            !TryReadRequiredString(root, "status", 16, false, out string trackingStatus, out error) ||
+                            !TryReadRequiredString(root, "error", 512, true, out string trackingError, out error))
+                        {
+                            await JsonAsync(stream, 400, new { ok = false, error }, token).ConfigureAwait(false);
+                            return;
+                        }
+
+                        var update = new TrackingStatusUpdate(clientId, revision, activeMode, trackingStatus, trackingError);
+                        var result = _reportTrackingStatus(update);
+                        int responseStatus = result.Ok ? 200 : result.Revision != revision ? 409 : 400;
+                        await JsonAsync(stream, responseStatus,
+                            result.Ok
+                                ? new { ok = true, revision = result.Revision, activeMode, status = trackingStatus }
+                                : new { ok = false, error = result.Error, revision = result.Revision },
+                            token).ConfigureAwait(false);
+                    }
                     return;
                 }
                 if (method == "POST" && path == "/api/show/play")
@@ -221,6 +325,62 @@ internal sealed class TabletServer : IDisposable
         return true;
     }
 
+    private static bool TryParseJsonObject(byte[] body, out JsonDocument json, out string error)
+    {
+        try
+        {
+            json = JsonDocument.Parse(body);
+            if (json.RootElement.ValueKind == JsonValueKind.Object)
+            {
+                error = "";
+                return true;
+            }
+            json.Dispose();
+        }
+        catch (JsonException) { }
+
+        json = null!;
+        error = "Se requiere un objeto JSON válido.";
+        return false;
+    }
+
+    private static bool TryReadRequiredString(JsonElement root, string name, int maximumLength,
+        bool allowEmpty, out string value, out string error)
+    {
+        value = "";
+        error = $"El campo {name} es obligatorio.";
+        JsonProperty[] matches = root.EnumerateObject()
+            .Where(property => property.NameEquals(name)).Take(2).ToArray();
+        if (matches.Length != 1 || matches[0].Value.ValueKind != JsonValueKind.String) return false;
+        value = matches[0].Value.GetString() ?? "";
+        if (value.Length > maximumLength || (!allowEmpty && value.Length == 0) ||
+            value.Any(character => char.IsControl(character) && character is not '\t'))
+        {
+            value = "";
+            error = $"El campo {name} es inválido.";
+            return false;
+        }
+        error = "";
+        return true;
+    }
+
+    private static bool TryReadRequiredInt64(JsonElement root, string name, out long value, out string error)
+    {
+        value = 0;
+        error = $"El campo {name} es obligatorio.";
+        JsonProperty[] matches = root.EnumerateObject()
+            .Where(property => property.NameEquals(name)).Take(2).ToArray();
+        if (matches.Length != 1 || matches[0].Value.ValueKind != JsonValueKind.Number ||
+            !matches[0].Value.TryGetInt64(out value) || value < 0)
+        {
+            value = 0;
+            error = $"El campo {name} es inválido.";
+            return false;
+        }
+        error = "";
+        return true;
+    }
+
     private static async Task<(string Method, string Path, byte[] Body, Dictionary<string, string> Headers)?> ReadRequestAsync(NetworkStream stream, CancellationToken token)
     {
         var data = new List<byte>(2048);
@@ -275,6 +435,7 @@ internal sealed class TabletServer : IDisposable
     private static async Task RespondAsync(NetworkStream stream, int status, string contentType, byte[] body, CancellationToken token)
     {
         string reason = status switch { 200 => "OK", 204 => "No Content", 400 => "Bad Request", 403 => "Forbidden",
+            409 => "Conflict",
             404 => "Not Found", 415 => "Unsupported Media Type", 503 => "Service Unavailable", _ => "Error" };
         string headers = $"HTTP/1.1 {status} {reason}\r\nContent-Type: {contentType}\r\nContent-Length: {body.Length}\r\nCache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\nConnection: close\r\n\r\n";
         await stream.WriteAsync(Encoding.ASCII.GetBytes(headers), token).ConfigureAwait(false);

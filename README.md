@@ -6,8 +6,8 @@ lo redistribuye a los controladores del montaje. V20 publica dos superficies web
 separadas: una consola interna para el operador y una experiencia sencilla para el
 cliente. Ambas se conectan únicamente a V20; xSchedule nunca se expone a la tablet.
 
-> Estado de referencia: manifiesto V4
-> `V20-MINIMAL-4-PORTABLE-VISUAL-BRIDGE`, actualizado el 8 de septiembre de 2026.
+> Estado de referencia: aplicación R6 con manifiesto de mapeo V4
+> `V20-MINIMAL-4-PORTABLE-VISUAL-BRIDGE`, actualizado el 9 de septiembre de 2026.
 
 ## Arquitectura
 
@@ -19,7 +19,7 @@ Tracking por LAN ───┘                           └─ Art-Net ─► .9
                          ┌────────────┴────────────┐
                          │                         │
               Operador HTTP :8780       Cliente HTTP :8781
-              fuente / test / show       catálogo comercial / iniciar
+              fuente / test / show       catálogo / tracking / iniciar
                          │                         │
                          └──────────── V20 ────────┘
                                       │
@@ -43,6 +43,10 @@ controladores.
   guía específica para Motion Tracking.
 - [`tools/build_v20_minimal_manifest.py`](tools/build_v20_minimal_manifest.py):
   generador del manifiesto V4.
+- `src/LightmanV20/TrackingControl/modes.json`: catálogo permitido de modos de
+  Motion Tracking (`silhouette` y `particles`).
+- `src/LightmanV20/Web/client.webmanifest`: apertura del cliente en horizontal y
+  pantalla completa cuando el navegador permite instalarlo como aplicación.
 
 Los shows, audios, `.xsq` y `.fseq` no forman parte de este repositorio. Su catálogo
 local de trece experiencias está en `ShowControl/shows.json` y xSchedule los
@@ -85,15 +89,30 @@ giros ni espejos.
 
 Las dos interfaces y sus límites están documentados en
 [`docs/06-TABLET-API.md`](docs/06-TABLET-API.md) y
-[`docs/10-SERVIDOR-CLIENTE.md`](docs/10-SERVIDOR-CLIENTE.md). Los botones internos de modos de
-tracking son una extensión planificada: el contrato de coordinación está en
-[`docs/09-CONTRATO-MODOS-TRACKING.md`](docs/09-CONTRATO-MODOS-TRACKING.md), pero
-todavía no se debe asumir que esos endpoints existen en V20.
+[`docs/10-SERVIDOR-CLIENTE.md`](docs/10-SERVIDOR-CLIENTE.md). R6 implementa los
+botones `SILUETA` y `PARTÍCULAS`, el polling del proceso remoto y su confirmación
+por revisión; el contrato vigente está en
+[`docs/09-CONTRATO-MODOS-TRACKING.md`](docs/09-CONTRATO-MODOS-TRACKING.md).
+
+## Cliente en Galaxy Tab S10+
+
+El puerto `8781` está ajustado para la pantalla horizontal 16:10 de la Galaxy Tab
+S10+. El manifiesto solicita orientación horizontal y modo `fullscreen`. Cuando la
+página se abre como una pestaña normal por HTTP en la LAN, el navegador exige una
+acción humana antes de ocultar sus barras: el primer toque intenta entrar en
+pantalla completa y el botón **Pantalla completa** queda como alternativa.
+
+La página pública consulta su estado a V20 cada 1,5 segundos. Una selección de
+tracking se muestra como activa únicamente después de que el programa remoto
+confirma el mismo modo y la misma revisión. Al terminar o detener un show lanzado
+por V20, la fuente vuelve a Resolume; una pausa mantiene xLights seleccionado.
 
 ## Alcance y seguridad
 
 - Los servidores de operador y cliente están pensados únicamente para la LAN
   privada del montaje.
+- La revisión R6 se sirve por HTTP dentro de esa LAN; el manifiesto y el modo de
+  pantalla completa no agregan cifrado ni autenticación.
 - La revisión actual no usa autenticación HTTP. El puerto 8781 reduce su superficie
   a catálogo comercial e inicio por ID, pero cualquier equipo de la LAN podría
   invocarlo. No expongas 8780 ni 8781 a Internet o a una red de invitados.

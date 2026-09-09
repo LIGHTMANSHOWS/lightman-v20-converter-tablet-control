@@ -440,12 +440,18 @@ internal static class MinimalSelfTest
                           .GetProperty("enabled").GetBoolean() == false),
                 "portal cliente mantiene Believer y Uptown Funk como Próximamente");
         }
+        var serverTracking = new TrackingModeController(
+        [
+            new TrackingModeDefinition("silhouette", "SILUETA", "Contorno", true),
+            new TrackingModeDefinition("particles", "PARTÍCULAS", "Partículas", true),
+        ]);
         using (var server = new TabletServer(web, 0, () => new { source = "resolume", generalTest = false },
                    value => { selectedValue = value; Interlocked.Increment(ref selected); return true; },
                    value => { testedValue = value; Interlocked.Increment(ref tested); return true; },
                    value => { playedShow = value; return TabletActionResult.Success(); },
                    () => { Interlocked.Increment(ref paused); return TabletActionResult.Success(); },
-                   () => { Interlocked.Increment(ref stopped); return TabletActionResult.Success(); }))
+                   () => { Interlocked.Increment(ref stopped); return TabletActionResult.Success(); },
+                   serverTracking.GetControlSnapshot, serverTracking.SelectMode, serverTracking.ReportStatus))
         {
             server.Start();
             using var http = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{server.ListeningPort}") };
@@ -471,11 +477,66 @@ internal static class MinimalSelfTest
             Check((int)http.Send(foreign).StatusCode == 403, "API rechaza origen web ajeno");
             Check(http.GetStringAsync("/api/state").GetAwaiter().GetResult().Contains("resolume"), "API tablet publica estado");
             Check(http.GetStringAsync("/").GetAwaiter().GetResult().Contains("CONTROL DEL SHOW"), "página de tablet incluida");
+            var trackingModeResponse = http.PostAsync("/api/tracking/mode",
+                new StringContent("{\"id\":\"particles\"}", Encoding.UTF8, "application/json")).GetAwaiter().GetResult();
+            string trackingControl = http.GetStringAsync("/api/tracking/control").GetAwaiter().GetResult();
+            var trackingStatusResponse = http.PostAsync("/api/tracking/status",
+                new StringContent("{\"clientId\":\"tracker-main\",\"revision\":1,\"activeMode\":\"particles\",\"status\":\"running\",\"error\":\"\"}",
+                    Encoding.UTF8, "application/json")).GetAwaiter().GetResult();
+            Check(trackingModeResponse.IsSuccessStatusCode && trackingStatusResponse.IsSuccessStatusCode &&
+                  trackingControl.Contains("\"desiredMode\":\"particles\"", StringComparison.Ordinal),
+                "API interna coordina selección, revisión y confirmación del tracker");
         }
+
+        var fallback = new ShowPlaybackFallback();
+        var idle = new XScheduleStatus(true, true, "Idle", "", "", "", "", "");
+        var playing = new XScheduleStatus(true, true, "Playing", "SHOW", "PASO", "", "", "");
+        var pausedState = new XScheduleStatus(true, true, "Paused", "SHOW", "PASO", "", "", "");
+        var disconnected = new XScheduleStatus(true, false, "Unavailable", "", "", "", "", "timeout");
+        var fallbackStart = new DateTime(2026, 9, 9, 12, 0, 0, DateTimeKind.Utc);
+        fallback.Arm(fallbackStart);
+        Check(!fallback.Observe(fallbackStart.AddSeconds(1), idle, true) &&
+              !fallback.Observe(fallbackStart.AddSeconds(2), playing, true) &&
+              !fallback.Observe(fallbackStart.AddSeconds(3), idle, true) &&
+              fallback.Observe(fallbackStart.AddSeconds(4), idle, true) && !fallback.Armed,
+            "fallback vuelve una sola vez después de confirmar Playing a Idle");
+        fallback.Arm(fallbackStart);
+        Check(!fallback.Observe(fallbackStart.AddSeconds(1), playing, true) &&
+              !fallback.Observe(fallbackStart.AddSeconds(2), pausedState, true) && fallback.Armed,
+            "fallback conserva xLights cuando el show está pausado");
+        Check(!fallback.Observe(fallbackStart.AddSeconds(3), disconnected, true) && fallback.Armed,
+            "fallback ignora una falla aislada de xSchedule");
+        Check(!fallback.Observe(fallbackStart.AddSeconds(4), disconnected, true, true, out _) &&
+              !fallback.Observe(fallbackStart.AddSeconds(5), disconnected, true, true, out _) &&
+              !fallback.Observe(fallbackStart.AddSeconds(6), disconnected, true, true, out _) && fallback.Armed,
+            "fallback conserva xLights si cae el API pero Art-Net sigue activo");
+        Check(!fallback.Observe(fallbackStart.AddSeconds(7), idle, false) && !fallback.Armed,
+            "cambio manual de fuente desarma el fallback pendiente");
+        fallback.Arm(fallbackStart);
+        Check(!fallback.Observe(fallbackStart.AddSeconds(1), playing, true) &&
+              !fallback.Observe(fallbackStart.AddSeconds(2), disconnected, true, false, out _) &&
+              !fallback.Observe(fallbackStart.AddSeconds(3), disconnected, true, false, out _) &&
+              fallback.Observe(fallbackStart.AddSeconds(4), disconnected, true, false, out _),
+            "caída confirmada de xSchedule y Art-Net retorna a Resolume");
+        fallback.Arm(fallbackStart);
+        Check(!fallback.Observe(fallbackStart.AddSeconds(7), idle, true) &&
+              fallback.Observe(fallbackStart.AddSeconds(8), idle, true),
+            "show que no logra iniciar retorna a Resolume después de la gracia");
+        fallback.Arm(fallbackStart);
+        long oldGeneration = -1;
+        Check(!fallback.Observe(fallbackStart.AddSeconds(1), playing, true) &&
+              !fallback.Observe(fallbackStart.AddSeconds(2), idle, true) &&
+              fallback.Observe(fallbackStart.AddSeconds(3), idle, true, out oldGeneration),
+            "fallback captura la generación de la sesión terminada");
+        fallback.Arm(fallbackStart.AddSeconds(4));
+        Check(!fallback.IsCurrent(oldGeneration) && fallback.Armed,
+            "un show nuevo invalida un retorno a Resolume pendiente");
 
         const string clientSecret = "SECRETO-OPERATIVO-192.168.1.91-C:\\shows\\privado.fseq";
         int clientPlayCalls = 0;
+        int clientTrackingCalls = 0;
         string clientPlayedValue = "";
+        string clientTrackingValue = "";
         var clientCatalogState = new
         {
             experiences = new object[]
@@ -525,6 +586,22 @@ internal static class MinimalSelfTest
                 },
             },
             activeExperienceId = "ritmo-de-luz",
+            tracking = new
+            {
+                configured = true,
+                connected = true,
+                status = "running",
+                desiredMode = "particles",
+                activeMode = "particles",
+                revision = 17,
+                error = clientSecret,
+                modes = new object[]
+                {
+                    new { id = "silhouette", title = "Silueta viva", description = "Tu contorno hecho luz.", enabled = true },
+                    new { id = "particles", title = "Partículas reactivas", description = "Movimiento convertido en energía.", enabled = true },
+                    new { id = "future-mode", title = "Próxima interacción", description = "Próximamente.", enabled = false },
+                },
+            },
             source = "tracking",
             sender = "192.168.1.50",
             endpoints = new { tracking = "192.168.1.50:6454" },
@@ -539,8 +616,13 @@ internal static class MinimalSelfTest
                    Interlocked.Increment(ref clientPlayCalls);
                    return value == "experiencia-con-error"
                        ? TabletActionResult.Fail(clientSecret)
-                       : TabletActionResult.Success();
-               }))
+                        : TabletActionResult.Success();
+                }, value =>
+                {
+                    clientTrackingValue = value;
+                    Interlocked.Increment(ref clientTrackingCalls);
+                    return TrackingModeSelectionResult.Success(value, 17);
+                }))
         {
             internalServer.Start();
             clientServer.Start();
@@ -556,8 +638,10 @@ internal static class MinimalSelfTest
                   clientHttp.GetStringAsync("/").GetAwaiter().GetResult().Contains("¿Qué experiencia quieres vivir hoy?"),
                 "cada servidor entrega exclusivamente su interfaz");
             Check(clientHttp.GetStringAsync("/client.css").GetAwaiter().GetResult().Contains("experience-grid") &&
-                  clientHttp.GetStringAsync("/client.js").GetAwaiter().GetResult().Contains("/api/experience/play"),
-                "portal cliente incluye sus recursos CSS y JavaScript");
+                  clientHttp.GetStringAsync("/client.js").GetAwaiter().GetResult().Contains("/api/experience/play") &&
+                  clientHttp.GetStringAsync("/client.webmanifest").GetAwaiter().GetResult().Contains("\"fullscreen\"") &&
+                  clientHttp.GetStringAsync("/client-icon.svg").GetAwaiter().GetResult().Contains("<svg"),
+                "portal cliente incluye recursos, manifiesto fullscreen e icono instalable");
 
             string publicPayload = clientHttp.GetStringAsync("/api/experiences").GetAwaiter().GetResult();
             using (var publicJson = JsonDocument.Parse(publicPayload))
@@ -575,11 +659,13 @@ internal static class MinimalSelfTest
                       publicExperiences[2].GetProperty("id").GetString() == "experiencia-en-preparacion" &&
                       !publicExperiences[2].GetProperty("enabled").GetBoolean() &&
                       publicExperiences[2].EnumerateObject().Select(p => p.Name).ToHashSet(StringComparer.Ordinal)
-                          .SetEquals(expectedPublicFields) &&
-                      publicRoot.GetProperty("activeExperienceId").GetString() == "ritmo-de-luz",
-                    "API cliente publica el contrato comercial de cinco campos, disponibilidad e ID activo");
+                           .SetEquals(expectedPublicFields) &&
+                       publicRoot.GetProperty("activeExperienceId").GetString() == "ritmo-de-luz" &&
+                       publicRoot.GetProperty("tracking").GetProperty("activeMode").GetString() == "particles" &&
+                       publicRoot.GetProperty("tracking").GetProperty("modes").GetArrayLength() == 3,
+                    "API cliente publica shows y modos de tracking mediante contratos comerciales limitados");
             }
-            string[] privateFields = ["playlist", "sequence", "audio", "note", "source", "sender", "endpoints", "ip", "error"];
+            string[] privateFields = ["playlist", "sequence", "audio", "note", "source", "sender", "endpoints", "ip", "error", "revision"];
             Check(privateFields.All(field => !publicPayload.Contains($"\"{field}\"", StringComparison.OrdinalIgnoreCase)) &&
                   !publicPayload.Contains("SECRETO-OPERATIVO", StringComparison.Ordinal) &&
                   !publicPayload.Contains("Nombre que no debe publicarse", StringComparison.Ordinal),
@@ -600,6 +686,14 @@ internal static class MinimalSelfTest
                   (int)disabledExperience.StatusCode == 400 && clientPlayCalls == 1,
                 "portal cliente rechaza IDs desconocidos, ocultos o deshabilitados sin ejecutar acciones");
 
+            using var trackingModeResponse = clientHttp.PostAsync("/api/tracking/mode",
+                new StringContent("{\"id\":\"particles\"}", Encoding.UTF8, "application/json")).GetAwaiter().GetResult();
+            using var unknownTrackingMode = clientHttp.PostAsync("/api/tracking/mode",
+                new StringContent("{\"id\":\"no-existe\"}", Encoding.UTF8, "application/json")).GetAwaiter().GetResult();
+            Check(trackingModeResponse.IsSuccessStatusCode && (int)unknownTrackingMode.StatusCode == 400 &&
+                  clientTrackingCalls == 1 && clientTrackingValue == "particles",
+                "portal cliente selecciona únicamente modos de tracking publicados y permitidos");
+
             using var failedExperience = clientHttp.PostAsync("/api/experience/play",
                 new StringContent("{\"id\":\"experiencia-con-error\"}", Encoding.UTF8, "application/json")).GetAwaiter().GetResult();
             string failedPayload = failedExperience.Content.ReadAsStringAsync().GetAwaiter().GetResult();
@@ -614,6 +708,7 @@ internal static class MinimalSelfTest
                 ("/api/show/play", "{\"id\":\"skeewiff\"}"),
                 ("/api/show/pause", "{}"),
                 ("/api/show/stop", "{}"),
+                ("/api/tracking/status", "{}"),
             };
             var blockedStatuses = new List<int>();
             foreach (var (path, body) in blockedPaths)
@@ -640,10 +735,11 @@ internal static class MinimalSelfTest
             using var optionsResponse = clientHttp.Send(optionsRequest);
             Check((int)wrongType.StatusCode == 415 && (int)malformed.StatusCode == 400 &&
                   (int)foreignClientResponse.StatusCode == 403 && (int)optionsResponse.StatusCode == 403 &&
-                  clientPlayCalls == 2,
+                   clientPlayCalls == 2,
                 "API cliente rechaza tipo, JSON, origen y preflight no autorizados");
         }
 
+        TrackingModeControllerSelfTest.Run(Check);
         ShowFolderDiscoverySelfTest.Run(Check);
         File.WriteAllLines(Path.Combine(AppContext.BaseDirectory, "SELFTEST-MINIMAL.txt"), Results);
     }

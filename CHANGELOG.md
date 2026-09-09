@@ -1,5 +1,22 @@
 # Registro de cambios
 
+## 2026-09-09 · R6 · cliente 16:10, tracking y retorno seguro
+
+- Interfaz pública adaptada a Galaxy Tab S10+ en horizontal 16:10.
+- Manifiesto web con orientación horizontal y presentación `fullscreen`; al abrir
+  por HTTP en la LAN, el primer gesto solicita pantalla completa y queda un botón
+  manual como alternativa.
+- Modos reales de Motion Tracking `silhouette` y `particles`, cargados desde el
+  catálogo local permitido.
+- Endpoints de selección, polling y confirmación por revisión implementados en el
+  servidor interno; selección de modos y estado público filtrado disponibles en
+  el servidor del cliente.
+- El portal del cliente refresca catálogo, experiencia activa y estado de tracking
+  cada 1,5 segundos. Un modo sólo aparece **En vivo** después del ACK del tracker.
+- Los shows lanzados por V20 regresan automáticamente a Resolume al terminar y el
+  botón Stop también fuerza ese retorno. Pause conserva xLights y no conmuta la
+  fuente.
+
 ## 2026-09-09 · autoimportación de shows
 
 - V20 Minimal revisa al iniciar las subcarpetas de `Desktop\shows xlights`.

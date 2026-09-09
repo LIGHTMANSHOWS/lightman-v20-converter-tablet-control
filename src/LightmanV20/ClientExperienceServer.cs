@@ -25,6 +25,7 @@ internal sealed class ClientExperienceServer : IDisposable
     private readonly int _port;
     private readonly Func<object> _experiences;
     private readonly Func<string, TabletActionResult> _playExperience;
+    private readonly Func<string, TrackingModeSelectionResult>? _selectTrackingMode;
     private readonly CancellationTokenSource _stop = new();
     private readonly SemaphoreSlim _handlerSlots = new(8, 8);
     private readonly SemaphoreSlim _playSlot = new(1, 1);
@@ -33,6 +34,12 @@ internal sealed class ClientExperienceServer : IDisposable
 
     public ClientExperienceServer(string webFolder, int port, Func<object> experiences,
         Func<string, TabletActionResult> playExperience)
+        : this(webFolder, port, experiences, playExperience, null)
+    { }
+
+    public ClientExperienceServer(string webFolder, int port, Func<object> experiences,
+        Func<string, TabletActionResult> playExperience,
+        Func<string, TrackingModeSelectionResult>? selectTrackingMode)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(webFolder);
         ArgumentNullException.ThrowIfNull(experiences);
@@ -43,6 +50,7 @@ internal sealed class ClientExperienceServer : IDisposable
         _port = port;
         _experiences = experiences;
         _playExperience = playExperience;
+        _selectTrackingMode = selectTrackingMode;
     }
 
     public int ListeningPort => (_listener?.LocalEndpoint as IPEndPoint)?.Port ?? _port;
@@ -125,6 +133,7 @@ internal sealed class ClientExperienceServer : IDisposable
                         ok = true,
                         experiences = catalog.Experiences,
                         activeExperienceId = catalog.ActiveExperienceId,
+                        tracking = catalog.Tracking,
                     }, token).ConfigureAwait(false);
                     return;
                 }
@@ -191,6 +200,63 @@ internal sealed class ClientExperienceServer : IDisposable
                     return;
                 }
 
+                if (method == "POST" && path == "/api/tracking/mode")
+                {
+                    if (!ValidJsonRequest(headers, out int status, out string error))
+                    {
+                        await JsonAsync(stream, status, new { ok = false, error }, token).ConfigureAwait(false);
+                        return;
+                    }
+
+                    string id;
+                    try
+                    {
+                        using var json = JsonDocument.Parse(body);
+                        if (json.RootElement.ValueKind != JsonValueKind.Object ||
+                            !json.RootElement.TryGetProperty("id", out var idElement) ||
+                            idElement.ValueKind != JsonValueKind.String)
+                            throw new JsonException();
+                        id = idElement.GetString() ?? "";
+                    }
+                    catch (JsonException)
+                    {
+                        await JsonAsync(stream, 400, new { ok = false, error = "Solicitud invalida." }, token).ConfigureAwait(false);
+                        return;
+                    }
+
+                    PublicCatalog catalog;
+                    try { catalog = CapturePublicCatalog(); }
+                    catch
+                    {
+                        await JsonAsync(stream, 503, new { ok = false, error = GenericFailure }, token).ConfigureAwait(false);
+                        return;
+                    }
+
+                    var mode = catalog.Tracking.Modes.FirstOrDefault(item => item.Id.Equals(id, StringComparison.Ordinal));
+                    if (_selectTrackingMode is null || mode is null || !mode.Enabled)
+                    {
+                        await JsonAsync(stream, 400, new { ok = false, error = "Experiencia interactiva no disponible." }, token).ConfigureAwait(false);
+                        return;
+                    }
+
+                    if (!_playSlot.Wait(0))
+                    {
+                        await JsonAsync(stream, 409, new { ok = false, error = "Hay una seleccion en curso." }, token).ConfigureAwait(false);
+                        return;
+                    }
+
+                    TrackingModeSelectionResult result;
+                    try { result = _selectTrackingMode(mode.Id); }
+                    catch { result = TrackingModeSelectionResult.Fail(GenericFailure, 0); }
+                    finally { _playSlot.Release(); }
+
+                    await JsonAsync(stream, result.Ok ? 200 : 503,
+                        result.Ok
+                            ? new { ok = true, id = result.Id, revision = result.Revision }
+                            : new { ok = false, error = GenericFailure }, token).ConfigureAwait(false);
+                    return;
+                }
+
                 if (method == "GET")
                 {
                     string file = path switch
@@ -198,6 +264,8 @@ internal sealed class ClientExperienceServer : IDisposable
                         "/" or "/client.html" => "client.html",
                         "/client.css" => "client.css",
                         "/client.js" => "client.js",
+                        "/client.webmanifest" => "client.webmanifest",
+                        "/client-icon.svg" => "client-icon.svg",
                         _ => "",
                     };
 
@@ -210,6 +278,8 @@ internal sealed class ClientExperienceServer : IDisposable
                             {
                                 ".css" => "text/css; charset=utf-8",
                                 ".js" => "text/javascript; charset=utf-8",
+                                ".webmanifest" => "application/manifest+json; charset=utf-8",
+                                ".svg" => "image/svg+xml; charset=utf-8",
                                 _ => "text/html; charset=utf-8",
                             };
                             byte[] content = await File.ReadAllBytesAsync(fullPath, token).ConfigureAwait(false);
@@ -292,7 +362,44 @@ internal sealed class ClientExperienceServer : IDisposable
             if (ids.Contains(candidate)) activeId = candidate;
         }
 
-        return new PublicCatalog(publicItems, activeId);
+        return new PublicCatalog(publicItems, activeId, CapturePublicTracking(container));
+    }
+
+    private static PublicTracking CapturePublicTracking(JsonElement container)
+    {
+        var modes = new List<PublicTrackingMode>();
+        if (container.ValueKind != JsonValueKind.Object ||
+            !TryProperty(container, "tracking", out var tracking) ||
+            tracking.ValueKind != JsonValueKind.Object)
+            return new PublicTracking(false, false, "offline", "", "", modes);
+
+        if (TryProperty(tracking, "modes", out var modeItems) && modeItems.ValueKind == JsonValueKind.Array)
+        {
+            var ids = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var item in modeItems.EnumerateArray())
+            {
+                if (item.ValueKind != JsonValueKind.Object) continue;
+                string id = StringProperty(item, "id");
+                string title = StringProperty(item, "title");
+                if (!ValidId(id) || string.IsNullOrWhiteSpace(title) || !ids.Add(id)) continue;
+                bool enabled = !TryBoolean(item, "enabled", out bool configuredEnabled) || configuredEnabled;
+                modes.Add(new PublicTrackingMode(id, LimitText(title, 80),
+                    LimitText(StringProperty(item, "description"), 160), enabled));
+            }
+        }
+
+        var allowedIds = modes.Select(mode => mode.Id).ToHashSet(StringComparer.Ordinal);
+        string desiredMode = StringProperty(tracking, "desiredMode");
+        string activeMode = StringProperty(tracking, "activeMode");
+        if (!allowedIds.Contains(desiredMode)) desiredMode = "";
+        if (!allowedIds.Contains(activeMode)) activeMode = "";
+
+        string status = StringProperty(tracking, "status").ToLowerInvariant();
+        if (status is not ("standby" or "offline" or "starting" or "running" or "degraded" or "error"))
+            status = "offline";
+        bool configured = TryBoolean(tracking, "configured", out bool configuredValue) && configuredValue;
+        bool connected = TryBoolean(tracking, "connected", out bool connectedValue) && connectedValue;
+        return new PublicTracking(configured, connected, status, desiredMode, activeMode, modes);
     }
 
     private static bool ValidJsonRequest(Dictionary<string, string> headers, out int status, out string error)
@@ -471,5 +578,9 @@ internal sealed class ClientExperienceServer : IDisposable
     }
 
     private sealed record PublicExperience(string Id, string PublicTitle, string Category, string Tagline, bool Enabled);
-    private sealed record PublicCatalog(IReadOnlyList<PublicExperience> Experiences, string? ActiveExperienceId);
+    private sealed record PublicTrackingMode(string Id, string Title, string Description, bool Enabled);
+    private sealed record PublicTracking(bool Configured, bool Connected, string Status, string DesiredMode,
+        string ActiveMode, IReadOnlyList<PublicTrackingMode> Modes);
+    private sealed record PublicCatalog(IReadOnlyList<PublicExperience> Experiences, string? ActiveExperienceId,
+        PublicTracking Tracking);
 }

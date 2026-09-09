@@ -14,6 +14,10 @@ internal sealed class MainForm : Form
     private readonly ArtNetReceiver _artNet = new();
     private readonly LiveEngine _live;
     private readonly XScheduleController _scheduler;
+    private readonly TrackingModeController _tracking;
+    private readonly ShowPlaybackFallback _showFallback = new();
+    private readonly CancellationTokenSource _scheduleMonitorStop = new();
+    private Task? _scheduleMonitorTask;
     private readonly WebView2 _viewer = new() { Dock = DockStyle.Fill, BackColor = Color.FromArgb(4, 7, 12) };
     private readonly System.Windows.Forms.Timer _frameTimer = new() { Interval = 33 };
     private readonly Label _status = new() { AutoSize = false, Width = 270, Dock = DockStyle.Right,
@@ -55,6 +59,8 @@ internal sealed class MainForm : Form
         _live = new LiveEngine(_artNet, null, automaticOutput: !previewOnly);
         _scheduler = XScheduleController.Load(
             Path.Combine(AppContext.BaseDirectory, "ShowControl", "shows.json"), runDiscovery: !previewOnly);
+        _tracking = TrackingModeController.Load(
+            Path.Combine(AppContext.BaseDirectory, "TrackingControl", "modes.json"));
         LoadSettings();
 
         var toolbar = BuildToolbar();
@@ -148,7 +154,8 @@ internal sealed class MainForm : Form
                 try
                 {
                     _tablet = new TabletServer(webFolder, TabletPort, TabletState, SelectSource, SetGeneralTest,
-                        PlayShow, PauseShow, StopShow);
+                        PlayShow, PauseShow, StopShow, TrackingControlState, SelectTrackingMode,
+                        _tracking.ReportStatus);
                     _tablet.Start();
                 }
                 catch (Exception ex)
@@ -160,7 +167,8 @@ internal sealed class MainForm : Form
 
                 try
                 {
-                    _client = new ClientExperienceServer(webFolder, ClientPort, ClientExperienceState, PlayShow);
+                    _client = new ClientExperienceServer(webFolder, ClientPort, ClientExperienceState, PlayShow,
+                        SelectTrackingMode);
                     _client.Start();
                 }
                 catch (Exception ex)
@@ -175,6 +183,7 @@ internal sealed class MainForm : Form
                 _tabletUrl.Text = internalAddress + Environment.NewLine + clientAddress;
             }
             else _tabletUrl.Text = "VISTA SIN RED";
+            if (!previewOnly) StartScheduleMonitor();
             // Start physical output only after the monitor itself is ready.
             // A missing WebView/runtime asset therefore fails safely in black.
             if (receiverReady) _live.Start();
@@ -187,17 +196,20 @@ internal sealed class MainForm : Form
         }
     }
 
-    private bool SelectSource(string source)
+    private bool SelectSource(string source) => SelectSource(source, pauseLeavingXlights: true);
+
+    private bool SelectSource(string source, bool pauseLeavingXlights)
     {
         if (InvokeRequired)
         {
-            try { return (bool)Invoke(new Func<string, bool>(SelectSource), source); }
+            try { return (bool)Invoke(new Func<string, bool, bool>(SelectSource), source, pauseLeavingXlights); }
             catch { return false; }
         }
         if (source is not ("resolume" or "xlights" or "tracking")) return false;
         string previous;
         lock (_stateGate) previous = _source;
-        if (previous == "xlights" && source != "xlights" && _scheduler.PauseWhenLeavingXlights)
+        if (source != "xlights") _showFallback.Disarm();
+        if (pauseLeavingXlights && previous == "xlights" && source != "xlights" && _scheduler.PauseWhenLeavingXlights)
         {
             var paused = _scheduler.PauseIfPlaying();
             lock (_stateGate) _schedulerActionError = paused.Ok ? "" : paused.Error;
@@ -247,7 +259,9 @@ internal sealed class MainForm : Form
             return TabletActionResult.Fail(result.Error);
         }
         lock (_stateGate) _schedulerActionError = "";
-        return SelectSource("xlights") ? TabletActionResult.Success() : TabletActionResult.Fail("No se pudo seleccionar xLights.");
+        if (!SelectSource("xlights")) return TabletActionResult.Fail("No se pudo seleccionar xLights.");
+        _showFallback.Arm(DateTime.UtcNow);
+        return TabletActionResult.Success();
     }
 
     private TabletActionResult PauseShow()
@@ -261,7 +275,75 @@ internal sealed class MainForm : Form
     {
         var result = _scheduler.Stop();
         lock (_stateGate) _schedulerActionError = result.Ok ? "" : result.Error;
-        return result.Ok ? TabletActionResult.Success() : TabletActionResult.Fail(result.Error);
+        if (!result.Ok) return TabletActionResult.Fail(result.Error);
+        _showFallback.Disarm();
+        return SelectSource("resolume", pauseLeavingXlights: false)
+            ? TabletActionResult.Success()
+            : TabletActionResult.Fail("El show se detuvo, pero V20 no pudo regresar a Resolume.");
+    }
+
+    private TrackingModeSelectionResult SelectTrackingMode(string id)
+    {
+        if (InvokeRequired)
+        {
+            try { return (TrackingModeSelectionResult)Invoke(new Func<string, TrackingModeSelectionResult>(SelectTrackingMode), id); }
+            catch { return TrackingModeSelectionResult.Fail("V20 no pudo seleccionar el modo de tracking.", 0); }
+        }
+
+        var result = _tracking.SelectMode(id);
+        if (!result.Ok) return result;
+        if (SelectSource("tracking")) return result;
+        return TrackingModeSelectionResult.Fail("V20 no pudo seleccionar Motion Tracking.", result.Revision);
+    }
+
+    private TrackingControlSnapshot TrackingControlState()
+    {
+        var state = _tracking.GetControlSnapshot();
+        string source;
+        lock (_stateGate) source = _source;
+        return state with { Selected = source == "tracking" };
+    }
+
+    private void StartScheduleMonitor()
+    {
+        if (_scheduleMonitorTask is not null) return;
+        _scheduleMonitorTask = Task.Run(async () =>
+        {
+            var token = _scheduleMonitorStop.Token;
+            try
+            {
+                using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(750));
+                while (await timer.WaitForNextTickAsync(token).ConfigureAwait(false))
+                {
+                    if (!_showFallback.Armed) continue;
+                    bool xlightsSelected;
+                    bool xlightsSignalActive;
+                    DateTime now = DateTime.UtcNow;
+                    lock (_stateGate)
+                    {
+                        xlightsSelected = _source == "xlights";
+                        xlightsSignalActive = xlightsSelected && _lastPacketUtc != DateTime.MinValue &&
+                            now - _lastPacketUtc < TimeSpan.FromSeconds(2);
+                    }
+                    var scheduler = _scheduler.GetStatus(force: true);
+                    if (!_showFallback.Observe(now, scheduler, xlightsSelected, xlightsSignalActive,
+                            out long fallbackGeneration)) continue;
+                    if (IsDisposed || Disposing) return;
+                    try
+                    {
+                        BeginInvoke(new Action(() =>
+                        {
+                            string source;
+                            lock (_stateGate) source = _source;
+                            if (source == "xlights" && _showFallback.IsCurrent(fallbackGeneration))
+                                SelectSource("resolume", pauseLeavingXlights: false);
+                        }));
+                    }
+                    catch (InvalidOperationException) { return; }
+                }
+            }
+            catch (OperationCanceledException) { }
+        });
     }
 
     private void ResetRate()
@@ -353,6 +435,7 @@ internal sealed class MainForm : Form
                     length = scheduler.Length,
                     error = _schedulerActionError.Length > 0 ? _schedulerActionError : scheduler.Error,
                 },
+                tracking = TrackingStateForPresentation(includeLastSeen: true),
                 autoImport = _scheduler.DiscoveryReport,
                 scheduleSync = _scheduler.ScheduleSyncReport,
                 shows,
@@ -365,10 +448,40 @@ internal sealed class MainForm : Form
     private object ClientExperienceState()
     {
         var scheduler = _scheduler.GetStatus();
+        string source;
+        lock (_stateGate) source = _source;
+        bool showActive = source == "xlights" && scheduler.Connected &&
+            (scheduler.Status.Equals("Playing", StringComparison.OrdinalIgnoreCase) ||
+             scheduler.Status.Equals("Paused", StringComparison.OrdinalIgnoreCase));
         return new
         {
             experiences = _scheduler.ExperiencesForClient(),
-            activeExperienceId = _scheduler.ExperienceIdForPlaylist(scheduler.Playlist),
+            activeExperienceId = showActive ? _scheduler.ExperienceIdForPlaylist(scheduler.Playlist) : "",
+            tracking = TrackingStateForPresentation(includeLastSeen: false),
+        };
+    }
+
+    private object TrackingStateForPresentation(bool includeLastSeen)
+    {
+        var tracking = _tracking.GetStateSnapshot();
+        string source;
+        lock (_stateGate) source = _source;
+        bool selected = source == "tracking";
+        bool activeConfirmed = selected && tracking.Connected &&
+            tracking.ActiveMode.Equals(tracking.DesiredMode, StringComparison.Ordinal) &&
+            tracking.Status is "running" or "degraded";
+        return new
+        {
+            configured = tracking.Configured,
+            connected = tracking.Connected,
+            selected,
+            status = selected ? tracking.Status : "standby",
+            desiredMode = selected ? tracking.DesiredMode : "",
+            activeMode = activeConfirmed ? tracking.ActiveMode : "",
+            revision = tracking.Revision,
+            lastSeenUtc = includeLastSeen ? tracking.LastSeenUtc : null,
+            error = includeLastSeen ? tracking.Error : "",
+            modes = tracking.Modes,
         };
     }
 
@@ -438,11 +551,14 @@ internal sealed class MainForm : Form
     private void Shutdown()
     {
         _frameTimer.Stop();
+        _scheduleMonitorStop.Cancel();
+        try { _scheduleMonitorTask?.Wait(TimeSpan.FromSeconds(2)); } catch { }
         _tablet?.Dispose();
         _client?.Dispose();
         _scheduler.Dispose();
         _live.Dispose();
         _artNet.Dispose();
         _viewer.Dispose();
+        _scheduleMonitorStop.Dispose();
     }
 }

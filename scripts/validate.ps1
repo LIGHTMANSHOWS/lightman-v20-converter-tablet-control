@@ -14,8 +14,14 @@ if ($sourceHash -ne $portableHash) {
 $PythonExecutable = $null
 $PythonUsesLauncher = $false
 if (Get-Command py -ErrorAction SilentlyContinue) {
-    py -3 --version *> $null
-    if ($LASTEXITCODE -eq 0) { $PythonUsesLauncher = $true }
+    try {
+        py -3 --version *> $null
+        if ($LASTEXITCODE -eq 0) { $PythonUsesLauncher = $true }
+    } catch {
+        # Windows puede conservar el lanzador `py.exe` aunque ya no tenga un
+        # runtime registrado. En ese caso continuamos con la búsqueda directa.
+        $PythonUsesLauncher = $false
+    }
 }
 if (-not $PythonUsesLauncher) {
     $PythonExecutable = (Get-Command python -ErrorAction SilentlyContinue).Source

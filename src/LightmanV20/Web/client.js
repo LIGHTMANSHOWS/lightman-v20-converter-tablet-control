@@ -1,5 +1,8 @@
 'use strict';
 
+const POLL_INTERVAL_MS = 1500;
+const REQUEST_TIMEOUT_MS = 4500;
+
 const FALLBACK_CATALOG = Object.freeze([
   { id: 'skeewiff', publicTitle: 'Ritmo de Luz', tagline: 'Color, movimiento y una entrada con energía.', category: 'Experiencia visual' },
   { id: 'santa', publicTitle: 'La Voz de Santa', tagline: 'Un encuentro navideño contado en español.', category: 'Navidad' },
@@ -38,6 +41,12 @@ const fallbackById = new Map(FALLBACK_CATALOG.map((item, index) => [item.id, { .
 const elements = {
   availability: document.getElementById('availability'),
   availabilityLabel: document.getElementById('availability-label'),
+  fullscreenToggle: document.getElementById('fullscreen-toggle'),
+  fullscreenLabel: document.getElementById('fullscreen-label'),
+  trackingSection: document.getElementById('tracking-section'),
+  trackingStatus: document.getElementById('tracking-status'),
+  trackingStatusLabel: document.getElementById('tracking-status-label'),
+  trackingModes: document.getElementById('tracking-modes'),
   categories: document.getElementById('categories'),
   catalog: document.getElementById('catalog'),
   catalogTitle: document.getElementById('catalog-title'),
@@ -52,11 +61,21 @@ const elements = {
 
 const state = {
   experiences: [],
+  tracking: null,
   category: 'Todas',
   busyId: null,
+  trackingBusyId: null,
   activeId: null,
-  unavailable: false
+  unavailable: false,
+  hasLoaded: false,
+  failures: 0,
+  catalogSignature: '',
+  trackingSignature: ''
 };
+
+let pollTimer = 0;
+let requestInFlight = false;
+let fullscreenRequestPending = false;
 
 function cleanText(value, fallback = '') {
   return typeof value === 'string' && value.trim() ? value.trim() : fallback;
@@ -80,6 +99,34 @@ function normaliseExperience(item, index) {
     category,
     enabled: item.enabled !== false,
     visualIndex: known?.visualIndex ?? index
+  };
+}
+
+function normaliseTracking(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+
+  const modes = Array.isArray(value.modes)
+    ? value.modes.map(item => {
+      if (!item || typeof item !== 'object') return null;
+      const id = cleanText(item.id);
+      const title = cleanText(item.title);
+      if (!id || !title) return null;
+      return {
+        id,
+        title,
+        description: cleanText(item.description),
+        enabled: item.enabled !== false
+      };
+    }).filter(Boolean)
+    : [];
+
+  return {
+    configured: value.configured === true,
+    connected: value.connected === true,
+    status: cleanText(value.status),
+    desiredMode: cleanText(value.desiredMode) || null,
+    activeMode: cleanText(value.activeMode) || null,
+    modes
   };
 }
 
@@ -137,10 +184,11 @@ function createExperienceCard(item, index) {
   card.type = 'button';
   card.className = `experience-card ${visual.theme}`.trim();
   card.dataset.experienceId = item.id;
-  card.disabled = state.unavailable || state.busyId !== null || !item.enabled;
+  card.disabled = state.unavailable || state.busyId !== null || state.trackingBusyId !== null || !item.enabled;
   card.classList.toggle('is-unavailable', !item.enabled || state.unavailable);
   card.classList.toggle('is-busy', state.busyId === item.id);
   card.classList.toggle('is-active', state.activeId === item.id);
+  card.setAttribute('aria-pressed', String(state.activeId === item.id));
   card.setAttribute('aria-label', `${state.busyId === item.id ? 'Iniciando' : item.enabled ? 'Vivir' : 'Próximamente'} ${item.publicTitle}. ${item.tagline}`);
 
   const top = document.createElement('span');
@@ -213,6 +261,152 @@ function renderCatalog() {
   }
 }
 
+function trackingStatusLabel(tracking) {
+  const status = tracking.status.toLocaleLowerCase('es');
+  if (status === 'error') return 'No disponible';
+  if (status === 'degraded' && tracking.activeMode) return 'En vivo · limitado';
+  if (tracking.activeMode) return 'En vivo';
+  if (status === 'starting') return 'Preparando';
+  if (tracking.connected) return 'Listo para elegir';
+  if (!tracking.configured) return 'Próximamente';
+
+  if (status.includes('prepar') || status.includes('conect')) return 'Preparando';
+  return 'En espera';
+}
+
+function createTrackingMode(mode) {
+  const tracking = state.tracking;
+  const isActive = tracking.activeMode === mode.id;
+  const isDesired = tracking.desiredMode === mode.id;
+  const isBusy = state.trackingBusyId === mode.id;
+
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'tracking-mode';
+  button.dataset.trackingMode = mode.id;
+  button.classList.toggle('is-active', isActive);
+  button.classList.toggle('is-selected', !isActive && isDesired);
+  button.disabled = !tracking.configured || !mode.enabled || state.busyId !== null || state.trackingBusyId !== null;
+  button.setAttribute('aria-pressed', String(isActive || isDesired));
+  button.setAttribute('aria-label', `${isActive ? 'En vivo' : isBusy || isDesired ? 'Preparando' : mode.enabled ? 'Elegir' : 'Próximamente'}: ${mode.title}${mode.description ? `. ${mode.description}` : ''}`);
+
+  const copy = document.createElement('span');
+  copy.className = 'tracking-mode__copy';
+  const title = document.createElement('span');
+  title.className = 'tracking-mode__title';
+  title.textContent = mode.title;
+  copy.append(title);
+  if (mode.description) {
+    const description = document.createElement('span');
+    description.className = 'tracking-mode__description';
+    description.textContent = mode.description;
+    copy.append(description);
+  }
+
+  const marker = document.createElement('span');
+  marker.className = 'tracking-mode__state';
+  marker.textContent = isActive ? 'En vivo' : isBusy || isDesired ? 'Preparando' : mode.enabled && tracking.configured ? 'Elegir' : 'Próximo';
+
+  button.append(copy, marker);
+  button.addEventListener('click', () => selectTrackingMode(mode));
+  return button;
+}
+
+function renderTracking() {
+  const tracking = state.tracking;
+  elements.trackingSection.hidden = tracking === null;
+  if (!tracking) {
+    elements.trackingModes.replaceChildren();
+    return;
+  }
+
+  elements.trackingStatus.classList.toggle('is-connected', tracking.connected && !tracking.activeMode);
+  elements.trackingStatus.classList.toggle('is-active', Boolean(tracking.activeMode));
+  elements.trackingStatus.classList.toggle('is-unavailable', tracking.status === 'error');
+  elements.trackingStatusLabel.textContent = trackingStatusLabel(tracking);
+  elements.trackingModes.setAttribute('aria-busy', String(state.trackingBusyId !== null));
+
+  if (tracking.modes.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'tracking-empty';
+    empty.textContent = 'Las interacciones estarán disponibles pronto.';
+    elements.trackingModes.replaceChildren(empty);
+    return;
+  }
+
+  elements.trackingModes.replaceChildren(...tracking.modes.map(createTrackingMode));
+}
+
+function experienceSignature(items) {
+  return JSON.stringify(items.map(item => [item.id, item.publicTitle, item.tagline, item.category, item.enabled, item.visualIndex]));
+}
+
+function trackingSignature(tracking) {
+  if (!tracking) return '';
+  return JSON.stringify([
+    tracking.configured,
+    tracking.connected,
+    tracking.status,
+    tracking.desiredMode,
+    tracking.activeMode,
+    tracking.modes.map(mode => [mode.id, mode.title, mode.description, mode.enabled])
+  ]);
+}
+
+function updateReadyMessage() {
+  const readyCount = state.experiences.filter(item => item.enabled).length;
+  const upcomingCount = state.experiences.length - readyCount;
+  const readyLabel = `${readyCount} ${readyCount === 1 ? 'experiencia lista' : 'experiencias listas'}`;
+  setActionStatus(upcomingCount > 0 ? `${readyLabel} · ${upcomingCount} próximamente` : readyLabel);
+}
+
+function applyPayload(payload, initial) {
+  const source = Array.isArray(payload) ? payload : payload?.experiences;
+  if (!Array.isArray(source)) throw new Error('invalid');
+
+  const experiences = source.map(normaliseExperience).filter(Boolean);
+  const tracking = normaliseTracking(Array.isArray(payload) ? null : payload.tracking);
+  const reportedActiveId = !Array.isArray(payload) && Object.prototype.hasOwnProperty.call(payload, 'activeExperienceId')
+    ? payload.activeExperienceId
+    : !Array.isArray(payload) ? payload.activeId : null;
+  const activeId = cleanText(reportedActiveId) || null;
+  const nextCatalogSignature = experienceSignature(experiences);
+  const nextTrackingSignature = trackingSignature(tracking);
+  const catalogChanged = nextCatalogSignature !== state.catalogSignature;
+  const trackingChanged = nextTrackingSignature !== state.trackingSignature;
+  const activeChanged = activeId !== state.activeId;
+  const previousTrackingMode = state.tracking?.activeMode || null;
+
+  state.experiences = experiences;
+  state.tracking = tracking;
+  state.activeId = activeId;
+  state.unavailable = false;
+  state.hasLoaded = true;
+  state.failures = 0;
+  state.catalogSignature = nextCatalogSignature;
+  state.trackingSignature = nextTrackingSignature;
+
+  setAvailability('ready', 'Listo');
+
+  if (catalogChanged || initial) renderCategories();
+  if (catalogChanged || activeChanged || initial) renderCatalog();
+  if (trackingChanged || initial) renderTracking();
+
+  if (!state.busyId && !state.trackingBusyId) {
+    if (initial) {
+      updateReadyMessage();
+    } else if (tracking?.activeMode && tracking.activeMode !== previousTrackingMode) {
+      const activeMode = tracking.modes.find(mode => mode.id === tracking.activeMode);
+      setActionStatus(activeMode ? `${activeMode.title} está en vivo.` : 'La interacción está en vivo.', 'success');
+    } else if (activeChanged && activeId) {
+      const activeExperience = experiences.find(item => item.id === activeId);
+      setActionStatus(activeExperience ? `${activeExperience.publicTitle} está en escena.` : 'La experiencia está en escena.', 'success');
+    } else if ((activeChanged && !activeId) || (previousTrackingMode && !tracking?.activeMode)) {
+      updateReadyMessage();
+    }
+  }
+}
+
 async function readJson(response) {
   try {
     return await response.json();
@@ -221,54 +415,77 @@ async function readJson(response) {
   }
 }
 
-async function loadExperiences() {
-  state.unavailable = false;
-  elements.catalog.hidden = false;
-  elements.emptyState.hidden = true;
-  elements.catalog.setAttribute('aria-busy', 'true');
-  setAvailability('loading', 'Preparando');
-  setActionStatus('Buscando experiencias…');
-
+async function fetchCatalog() {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
     const response = await fetch('/api/experiences', {
       cache: 'no-store',
-      headers: { Accept: 'application/json' }
+      headers: { Accept: 'application/json' },
+      signal: controller.signal
     });
     if (!response.ok) throw new Error('unavailable');
-
     const payload = await readJson(response);
     if (payload && payload.ok === false) throw new Error('unavailable');
-    const source = Array.isArray(payload) ? payload : payload.experiences;
-    if (!Array.isArray(source)) throw new Error('invalid');
+    return payload;
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
 
-    state.experiences = source.map(normaliseExperience).filter(Boolean);
-    const reportedActiveId = Object.prototype.hasOwnProperty.call(payload, 'activeExperienceId')
-      ? payload.activeExperienceId
-      : payload.activeId;
-    state.activeId = cleanText(reportedActiveId) || null;
-    state.category = 'Todas';
-    setAvailability('ready', 'Listo para elegir');
-    const readyCount = state.experiences.filter(item => item.enabled).length;
-    const upcomingCount = state.experiences.length - readyCount;
-    const readyLabel = `${readyCount} ${readyCount === 1 ? 'experiencia lista' : 'experiencias listas'}`;
-    setActionStatus(upcomingCount > 0 ? `${readyLabel} · ${upcomingCount} próximamente` : readyLabel);
-  } catch {
-    state.unavailable = true;
-    state.experiences = FALLBACK_CATALOG.map((item, index) => ({ ...item, enabled: false, visualIndex: index }));
-    setAvailability('unavailable', 'No disponible');
-    setActionStatus('Intenta nuevamente en un momento.', 'error');
+async function refreshExperiences({ initial = false } = {}) {
+  if (requestInFlight) return;
+  requestInFlight = true;
+
+  if (initial && !state.hasLoaded) {
+    state.unavailable = false;
+    elements.catalog.hidden = false;
+    elements.emptyState.hidden = true;
+    elements.catalog.setAttribute('aria-busy', 'true');
+    setAvailability('loading', 'Preparando');
+    setActionStatus('Buscando experiencias…');
   }
 
-  renderCategories();
-  renderCatalog();
+  try {
+    const payload = await fetchCatalog();
+    applyPayload(payload, initial || !state.hasLoaded);
+  } catch {
+    state.failures += 1;
+    if (!state.hasLoaded) {
+      state.unavailable = true;
+      state.experiences = FALLBACK_CATALOG.map((item, index) => ({ ...item, enabled: false, visualIndex: index }));
+      state.catalogSignature = experienceSignature(state.experiences);
+      state.tracking = null;
+      state.trackingSignature = '';
+      setAvailability('unavailable', 'No disponible');
+      setActionStatus('Intenta nuevamente en un momento.', 'error');
+      renderCategories();
+      renderCatalog();
+      renderTracking();
+    } else if (state.failures >= 3) {
+      setAvailability('unavailable', 'Reconectando');
+    }
+  } finally {
+    requestInFlight = false;
+  }
+}
+
+function schedulePoll(delay = POLL_INTERVAL_MS) {
+  window.clearTimeout(pollTimer);
+  if (document.hidden) return;
+  pollTimer = window.setTimeout(async () => {
+    await refreshExperiences();
+    schedulePoll();
+  }, delay);
 }
 
 async function playExperience(item) {
-  if (state.busyId || state.unavailable || !item.enabled) return;
+  if (state.busyId || state.trackingBusyId || state.unavailable || !item.enabled) return;
 
   state.busyId = item.id;
   setActionStatus(`Iniciando ${item.publicTitle}…`);
   renderCatalog();
+  renderTracking();
 
   try {
     const response = await fetch('/api/experience/play', {
@@ -282,11 +499,10 @@ async function playExperience(item) {
     const payload = await readJson(response);
     if (!response.ok || payload.ok === false) throw new Error('not-started');
 
-    state.activeId = item.id;
-    setActionStatus(`${item.publicTitle} está en escena.`, 'success');
-    elements.successTitle.textContent = item.publicTitle;
-    elements.successMessage.textContent = 'La experiencia ya comenzó. Disfruta el momento.';
-    if (typeof elements.successDialog.showModal === 'function') {
+    setActionStatus(`${item.publicTitle} se está preparando…`, 'success');
+    elements.successTitle.textContent = `Preparando ${item.publicTitle}`;
+    elements.successMessage.textContent = 'V20 recibió la solicitud. Se marcará “En escena” cuando xSchedule confirme la reproducción.';
+    if (typeof elements.successDialog.showModal === 'function' && !elements.successDialog.open) {
       elements.successDialog.showModal();
     }
   } catch {
@@ -294,12 +510,126 @@ async function playExperience(item) {
   } finally {
     state.busyId = null;
     renderCatalog();
+    renderTracking();
+    schedulePoll(100);
   }
 }
 
-elements.retry.addEventListener('click', loadExperiences);
+async function selectTrackingMode(mode) {
+  if (!state.tracking || state.trackingBusyId || state.busyId || !state.tracking.configured || !mode.enabled) return;
+
+  state.trackingBusyId = mode.id;
+  setActionStatus(`Preparando ${mode.title}…`);
+  renderCatalog();
+  renderTracking();
+
+  try {
+    const response = await fetch('/api/tracking/mode', {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ id: mode.id })
+    });
+    const payload = await readJson(response);
+    if (!response.ok || payload.ok === false) throw new Error('not-started');
+
+    state.tracking.desiredMode = mode.id;
+    setActionStatus(`${mode.title} se está preparando.`, 'success');
+  } catch {
+    setActionStatus('No pudimos iniciar la interacción. Intenta nuevamente.', 'error');
+  } finally {
+    state.trackingBusyId = null;
+    renderCatalog();
+    renderTracking();
+    schedulePoll(100);
+  }
+}
+
+function fullscreenElement() {
+  return document.fullscreenElement || document.webkitFullscreenElement || null;
+}
+
+function runsAsApp() {
+  return window.matchMedia('(display-mode: fullscreen)').matches ||
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true;
+}
+
+function updateFullscreenControl() {
+  const active = Boolean(fullscreenElement());
+  elements.fullscreenToggle.hidden = runsAsApp() && !active;
+  elements.fullscreenToggle.setAttribute('aria-label', active ? 'Salir de pantalla completa' : 'Abrir en pantalla completa');
+  elements.fullscreenLabel.textContent = active ? 'Salir de pantalla completa' : 'Pantalla completa';
+  document.body.classList.toggle('is-fullscreen', active || runsAsApp());
+}
+
+async function enterFullscreen() {
+  if (fullscreenRequestPending || fullscreenElement() || runsAsApp()) return;
+  fullscreenRequestPending = true;
+  try {
+    const root = document.documentElement;
+    if (typeof root.requestFullscreen === 'function') {
+      await root.requestFullscreen();
+    } else if (typeof root.webkitRequestFullscreen === 'function') {
+      root.webkitRequestFullscreen();
+    }
+    if (window.screen?.orientation && typeof window.screen.orientation.lock === 'function') {
+      try { await window.screen.orientation.lock('landscape'); } catch { }
+    }
+  } catch {
+    // El boton permanece visible para que el usuario pueda intentarlo otra vez.
+  } finally {
+    fullscreenRequestPending = false;
+    updateFullscreenControl();
+  }
+}
+
+async function toggleFullscreen() {
+  if (fullscreenElement()) {
+    try {
+      if (typeof document.exitFullscreen === 'function') await document.exitFullscreen();
+      else if (typeof document.webkitExitFullscreen === 'function') document.webkitExitFullscreen();
+      if (window.screen?.orientation && typeof window.screen.orientation.unlock === 'function') {
+        window.screen.orientation.unlock();
+      }
+    } catch {
+      // El navegador conserva el estado actual si no permite salir desde aqui.
+    }
+    return;
+  }
+  await enterFullscreen();
+}
+
+function enterFullscreenOnFirstGesture(event) {
+  if (event.target instanceof Element && event.target.closest('#fullscreen-toggle')) return;
+  void enterFullscreen();
+}
+
+elements.retry.addEventListener('click', async () => {
+  await refreshExperiences({ initial: true });
+  schedulePoll();
+});
+elements.fullscreenToggle.addEventListener('click', toggleFullscreen);
 elements.successDialog.addEventListener('close', () => {
-  document.querySelector(`[data-experience-id="${CSS.escape(state.activeId)}"]`)?.focus();
+  if (!state.activeId) return;
+  const card = [...document.querySelectorAll('[data-experience-id]')]
+    .find(item => item.dataset.experienceId === state.activeId);
+  card?.focus();
 });
 
-loadExperiences();
+document.addEventListener('fullscreenchange', updateFullscreenControl);
+document.addEventListener('webkitfullscreenchange', updateFullscreenControl);
+document.addEventListener('pointerup', enterFullscreenOnFirstGesture, { capture: true, once: true });
+document.addEventListener('keydown', enterFullscreenOnFirstGesture, { capture: true, once: true });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    window.clearTimeout(pollTimer);
+    return;
+  }
+  void refreshExperiences().finally(() => schedulePoll());
+});
+
+updateFullscreenControl();
+void refreshExperiences({ initial: true }).finally(() => schedulePoll());

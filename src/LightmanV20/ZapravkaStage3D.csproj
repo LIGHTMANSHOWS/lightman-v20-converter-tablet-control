@@ -19,7 +19,7 @@
   <ItemGroup>
     <Content Include="LEEME-V20-MINIMAL.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4078.44" />
-    <Content Include="Web\index.html;Web\styles.css;Web\minimal.css;Web\app.js;Web\patch-map.js;Web\pixel-map.js;Web\banner-layout.js;Web\ceiling-layout.js;Web\neon-pixels.js;Web\scene-editor.js;Web\scrub-number.js;Web\OrbitControls.js;Web\three.module.min.js;Web\three.core.min.js;Web\tablet.html;Web\tablet.css;Web\tablet.js;Web\client.html;Web\client.css;Web\client.js;Web\THREE-LICENSE.txt"
+    <Content Include="Web\index.html;Web\styles.css;Web\minimal.css;Web\app.js;Web\patch-map.js;Web\pixel-map.js;Web\banner-layout.js;Web\ceiling-layout.js;Web\neon-pixels.js;Web\scene-editor.js;Web\scrub-number.js;Web\OrbitControls.js;Web\three.module.min.js;Web\three.core.min.js;Web\tablet.html;Web\tablet.css;Web\tablet.js;Web\client.html;Web\client.css;Web\client.js;Web\client.webmanifest;Web\client-icon.svg;Web\THREE-LICENSE.txt"
              CopyToOutputDirectory="PreserveNewest"
              CopyToPublishDirectory="PreserveNewest"
              ExcludeFromSingleFile="true" />
@@ -28,6 +28,10 @@
              CopyToPublishDirectory="PreserveNewest"
              ExcludeFromSingleFile="true" />
     <Content Include="ShowControl\shows.json;ShowControl\CARGAR-EN-XSCHEDULE.md"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest"
+             ExcludeFromSingleFile="true" />
+    <Content Include="TrackingControl\modes.json"
              CopyToOutputDirectory="PreserveNewest"
              CopyToPublishDirectory="PreserveNewest"
              ExcludeFromSingleFile="true" />

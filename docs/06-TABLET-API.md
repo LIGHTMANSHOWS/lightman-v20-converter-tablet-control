@@ -23,11 +23,14 @@ para el cliente usa el segundo servidor descrito en
 |---|---|---|---|
 | `GET` | `/health` | — | Salud básica del servidor. |
 | `GET` | `/api/state` | — | Estado de V20, señal, fuente, xSchedule y shows. |
+| `GET` | `/api/tracking/control` | — | Orden vigente que consulta el backend de Tracking. |
 | `POST` | `/api/source` | `{"source":"resolume"}` | Selecciona `resolume`, `xlights` o `tracking`. |
 | `POST` | `/api/test` | `{"enabled":true}` | Inicia o detiene el test general. |
+| `POST` | `/api/tracking/mode` | `{"id":"particles"}` | Solicita un modo permitido y devuelve su revisión. |
+| `POST` | `/api/tracking/status` | Ver contrato | Confirma modo, revisión y heartbeat del tracker. |
 | `POST` | `/api/show/play` | `{"id":"skeewiff"}` | Reproduce por ID un show permitido. |
 | `POST` | `/api/show/pause` | `{}` | Pausa o continúa xSchedule. |
-| `POST` | `/api/show/stop` | `{}` | Detiene xSchedule. |
+| `POST` | `/api/show/stop` | `{}` | Detiene xSchedule y vuelve a Resolume. |
 
 Todas las solicitudes `POST` necesitan `Content-Type: application/json`. Si el
 navegador envía `Origin`, debe coincidir con el `Host` de V20. CORS está bloqueado:
@@ -63,6 +66,21 @@ podría enviar comandos. Mantén 8780 limitado a la red privada del show.
     "length": "",
     "error": ""
   },
+  "tracking": {
+    "configured": true,
+    "connected": true,
+    "selected": true,
+    "status": "running",
+    "desiredMode": "particles",
+    "activeMode": "particles",
+    "revision": 17,
+    "lastSeenUtc": "2026-09-09T12:00:00Z",
+    "error": "",
+    "modes": [
+      {"id":"silhouette", "title":"SILUETA", "description":"Contorno del cuerpo", "enabled":true},
+      {"id":"particles", "title":"PARTÍCULAS", "description":"Partículas reactivas", "enabled":true}
+    ]
+  },
   "shows": [],
   "endpoints": {
     "resolume": "127.0.0.2:6454",
@@ -80,45 +98,53 @@ la respuesta de V20 es la fuente de verdad.
 - Al lanzar un show, V20 ordena la playlist a xSchedule y selecciona `xlights`.
 - Al salir de xLights hacia Resolume o Tracking, V20 pausa xSchedule.
 - El test general también pausa el show.
+- Al terminar naturalmente el show, V20 confirma el estado final de xSchedule y
+  vuelve automáticamente a `resolume`.
+- `POST /api/show/stop` detiene el show y vuelve inmediatamente a `resolume`.
+- `POST /api/show/pause` sólo alterna pausa/reproducción: una pausa conserva
+  `xlights` como fuente y no provoca el retorno.
 - xSchedule solo es accesible para V20 por `127.0.0.1`; la tablet no lo controla
   directamente.
 
-## Extensión propuesta para modos de Tracking
+El monitor de final se arma únicamente para shows lanzados por V20. Evita confundir
+el breve `Idle` inicial con un final y requiere dos lecturas `Idle` consecutivas.
+Una caída del API no interrumpe el show mientras xLights siga enviando Art-Net;
+V20 sólo retorna por desconexión cuando también confirma la ausencia de señal.
 
-Estos endpoints **todavía no están implementados**. Son el contrato recomendado
-para añadir los botones solicitados sin exponer comandos arbitrarios en la tablet:
+## Modos de Tracking implementados
 
-```http
-GET /api/state
-```
-
-```json
-{
-  "tracking": {
-    "connected": true,
-    "activeMode": "silhouette",
-    "modes": [
-      {"id":"silhouette", "title":"Silueta", "enabled":true},
-      {"id":"particles", "title":"Partículas", "enabled":true}
-    ]
-  }
-}
-```
+El catálogo local de R6 publica dos IDs permitidos: `silhouette` y `particles`.
+La selección puede hacerse desde el servidor interno o desde la superficie del
+cliente:
 
 ```http
 POST /api/tracking/mode
 Content-Type: application/json
+```
 
+```json
 {"id":"particles"}
 ```
 
-Reglas recomendadas:
+V20 responde al aceptar la orden:
+
+```json
+{"ok":true,"id":"particles","revision":17}
+```
+
+Esa respuesta confirma la orden, no que el efecto ya esté activo. El backend de
+Tracking consulta `GET /api/tracking/control`, aplica el modo y responde a
+`POST /api/tracking/status` con el mismo `activeMode` y la misma `revision`. V20
+rechaza revisiones antiguas o modos distintos. El heartbeat vence a los dos
+segundos; `connected` pasa a `false` y `status` se publica como `offline`.
+
+Reglas vigentes:
 
 1. Los IDs provienen de un catálogo local permitido; la tablet no envía IPs,
    ejecutables, rutas ni comandos libres.
 2. V20 actúa como broker: valida el ID, ordena el modo al proceso de Tracking y
-   recién entonces selecciona la fuente `tracking`.
-3. El estado confirmado del proceso remoto vuelve a `/api/state`; un clic no se
-   considera éxito hasta recibir confirmación.
-4. Si Tracking deja de enviar Art-Net durante 2 segundos, V20 conserva la política
-   segura vigente y pone la salida correspondiente en negro.
+   selecciona la fuente `tracking`; si venía de xLights, pausa el show.
+3. `desiredMode` es la orden pendiente. `activeMode` sólo representa el modo
+   confirmado por el proceso remoto.
+4. El detalle completo de polling y ACK está en
+   [`09-CONTRATO-MODOS-TRACKING.md`](09-CONTRATO-MODOS-TRACKING.md).

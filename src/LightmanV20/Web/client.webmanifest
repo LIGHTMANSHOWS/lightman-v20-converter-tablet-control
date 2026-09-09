@@ -1,0 +1,21 @@
+{
+  "name": "Lightman Experiences",
+  "short_name": "Lightman",
+  "description": "Experiencias de luz e interacción en vivo.",
+  "lang": "es",
+  "start_url": "/client.html",
+  "scope": "/",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "landscape",
+  "background_color": "#070912",
+  "theme_color": "#070912",
+  "icons": [
+    {
+      "src": "/client-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "modes": [
+    {
+      "id": "silhouette",
+      "title": "SILUETA",
+      "description": "Contorno del cuerpo",
+      "enabled": true
+    },
+    {
+      "id": "particles",
+      "title": "PARTÍCULAS",
+      "description": "Partículas reactivas",
+      "enabled": true
+    }
+  ]
+}
