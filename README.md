@@ -49,7 +49,7 @@ controladores.
   pantalla completa cuando el navegador permite instalarlo como aplicación.
 
 Los shows, audios, `.xsq` y `.fseq` no forman parte de este repositorio. Su catálogo
-local de trece experiencias está en `ShowControl/shows.json` y xSchedule los
+local de quince experiencias está en `ShowControl/shows.json` y xSchedule los
 reproduce desde el equipo del show. Las entradas incompletas pueden mantenerse
 visibles como `Próximamente` sin permitir su ejecución al cliente. El catálogo
 separa expresamente la habilitación interna de la disponibilidad pública. La

@@ -418,13 +418,14 @@ internal static class MinimalSelfTest
         using (var catalog = XScheduleController.Load(
                    Path.Combine(AppContext.BaseDirectory, "ShowControl", "shows.json"), runDiscovery: false))
         {
-            Check(catalog.Shows.Count == 13 && catalog.Shows.Count(show => show.Enabled) == 12 &&
-                  catalog.Shows.Count(show => show.ClientEnabled) == 10,
-                "catálogo V20 habilita doce shows internos y conserva diez disponibles al cliente");
+            Check(catalog.Shows.Count == 15 && catalog.Shows.Count(show => show.Enabled) == 14 &&
+                  catalog.Shows.Count(show => show.ClientEnabled) == 12,
+                "catálogo V20 habilita catorce shows internos y doce disponibles al cliente");
             Check(catalog.Shows.Skip(7).Select(show => show.Id).SequenceEqual(new[]
-                { "this-is-halloween", "light-em-up", "baby-shark-edm", "blinding-lights", "believer", "uptown-funk" }) &&
+                { "this-is-halloween", "light-em-up", "baby-shark-edm", "blinding-lights", "believer", "uptown-funk",
+                  "zapravka-zavod", "chicken-banana" }) &&
                   catalog.Shows.Skip(7).All(show => show.ClientVisible && !string.IsNullOrWhiteSpace(show.PublicTitle)),
-                "seis proyectos nuevos tienen ID estable y nombre comercial");
+                "ocho proyectos nuevos tienen ID estable y nombre comercial");
             Check(!catalog.Shows.Single(show => show.Id == "blinding-lights").Enabled &&
                   new[] { "believer", "uptown-funk" }.All(id =>
                   {
@@ -439,6 +440,10 @@ internal static class MinimalSelfTest
                       clientItems.Single(item => item.GetProperty("id").GetString() == id)
                           .GetProperty("enabled").GetBoolean() == false),
                 "portal cliente mantiene Believer y Uptown Funk como Próximamente");
+            Check(new[] { "zapravka-zavod", "chicken-banana" }.All(id =>
+                      clientItems.Single(item => item.GetProperty("id").GetString() == id)
+                          .GetProperty("enabled").GetBoolean()),
+                "portal cliente publica ZAPRAVKA ZAVOD y CHICKEN BANANA como experiencias disponibles");
         }
         var serverTracking = new TrackingModeController(
         [

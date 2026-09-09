@@ -52,6 +52,8 @@ implica cifrado ni autenticación.
 | `blinding-lights` | Ciudad de Neón | Experiencia visual |
 | `believer` | Fuerza Imparable | Experiencia visual |
 | `uptown-funk` | Ritmo en la Ciudad | Experiencia visual |
+| `zapravka-zavod` | Fábrica de Luz | Experiencia visual |
+| `chicken-banana` | Fiesta Banana | Experiencia familiar |
 
 Los IDs, playlists y rutas de archivos siguen siendo internos. Cambiar un
 `publicTitle`, `category` o `tagline` no modifica el vínculo con xSchedule.
@@ -96,11 +98,13 @@ modo y la misma revisión mediante el servidor interno; recién entonces aparece
 - Pause conserva xLights como fuente y no dispara el retorno automático.
 - El portal del cliente no expone Pause ni Stop; únicamente inicia experiencias.
 
-Al 8 de septiembre de 2026, 08–10 están renderizados con audio utilizable. La 11
+Al 9 de septiembre de 2026, 08–10 están renderizados con audio utilizable. La 11
 no tiene secuencia; la 12 tiene un audio aproximadamente 1,54 s más corto que el
 render; y la 13 necesita la edición Radio Edit de 235,573 s. Por esa razón 11–13
 permanecen como `Próximamente` para el cliente. El operador interno puede probar
 12 y 13 con esas advertencias; 11 continúa bloqueado porque no tiene FSEQ.
+Las experiencias 18 y 20 fueron promovidas manualmente al catálogo comercial:
+**Fábrica de Luz** y **Fiesta Banana** están disponibles para reproducción.
 
 ## Separación de superficies
 

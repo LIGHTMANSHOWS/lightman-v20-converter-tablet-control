@@ -146,6 +146,38 @@ internal static class ShowFolderDiscoverySelfTest
             check(File.ReadAllText(sidecar) == sidecarBeforeSecondLoad &&
                   File.GetLastWriteTimeUtc(sidecar) == sidecarWriteBeforeSecondLoad,
                 "inicio idempotente tampoco reescribe el catálogo lateral cuando no hay cambios");
+
+            settings.Shows.Add(new ShowLaunchDefinition
+            {
+                Id = "new-show-public",
+                Title = "NEW SHOW",
+                PublicTitle = "Nueva experiencia",
+                Category = "Experiencia visual",
+                Tagline = "Show promovido manualmente.",
+                ClientVisible = true,
+                Playlist = "14 · NEW SHOW",
+                Sequence = selectedSequence,
+                Audio = referencedAudio,
+                Enabled = true,
+                ClientEnabled = true,
+            });
+            File.WriteAllText(configurationPath, JsonSerializer.Serialize(settings, json), new UTF8Encoding(false));
+
+            using (var promotedLoad = XScheduleController.Load(configurationPath))
+            {
+                var promoted = promotedLoad.Shows.Single(show => show.Id == "new-show-public");
+                check(promotedLoad.Shows.Count(show => show.Title == "NEW SHOW") == 1 &&
+                      !promoted.AutoDiscovered && promoted.ClientVisible && promoted.ClientEnabled &&
+                      promotedLoad.ExperiencesForClient().Length == 1,
+                    "definición manual promueve el show al cliente sin duplicar la entrada automática");
+            }
+
+            var sidecarAfterPromotion = JsonSerializer.Deserialize<AutoDiscoveredShowCatalog>(
+                File.ReadAllText(sidecar), LiveEngine.Json);
+            check(sidecarAfterPromotion is not null && sidecarAfterPromotion.Shows.Count == 1 &&
+                  sidecarAfterPromotion.Shows.Single().Title == "SECOND SHOW" &&
+                  sidecarAfterPromotion.Shows.All(show => show.Id != "auto-new-show"),
+                "promoción manual retira del catálogo lateral la copia automática reemplazada");
         }
         finally
         {

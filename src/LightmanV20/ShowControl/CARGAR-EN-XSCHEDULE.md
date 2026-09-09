@@ -17,8 +17,8 @@ playlist y envía Art-Net a la entrada local de xLights de V20 (`127.0.0.3:6454`
 
 ## Catálogo vigente
 
-`shows.json` es la fuente de verdad y actualmente contiene doce shows habilitados
-para el operador interno. Las playlists instaladas son:
+`shows.json` es la fuente de verdad y actualmente contiene catorce shows habilitados
+para el operador interno. Sus playlists manuales son:
 
 1. `01 · SKEEWIFF`
 2. `02 · SANTA EN ESPAÑOL`
@@ -32,10 +32,14 @@ para el operador interno. Las playlists instaladas son:
 10. `10 · BABY SHARK EDM`
 11. `12 · BELIEVER` — sólo prueba interna; audio aún no aprobado
 12. `13 · UPTOWN FUNK` — sólo prueba interna; audio aún no aprobado
+13. `18 · ZAPRAVKA ZAVOD` — publicada como **Fábrica de Luz**
+14. `20 · CHICKEN BANANA` — publicada como **Fiesta Banana**
 
 `11 · BLINDING LIGHTS` no se instala ni se habilita porque todavía no existe su
 FSEQ. Las experiencias 12 y 13 permanecen como `Próximamente` en el portal del
 cliente aunque el operador pueda probarlas desde el servidor interno.
+Las playlists 14–17 y 19 permanecen autoimportadas para prueba interna; 18 y 20
+ya fueron promovidas al catálogo manual y al portal del cliente.
 
 Los nombres de las playlists deben coincidir exactamente con el campo `playlist`.
 Las rutas usan `%USERPROFILE%` para no fijar un nombre de usuario; ajústalas en una
@@ -51,7 +55,8 @@ prioriza el FSEQ de la raíz y se excluyen `Fuente_original`, `Backup` y
 `Validacion`.
 
 Los hallazgos se habilitan únicamente en el control interno; nunca aparecen en
-el portal del cliente. `shows.json` no se modifica. V20 conserva el catálogo
+el portal del cliente hasta que se promueven manualmente en `shows.json`. El
+descubrimiento no modifica `shows.json`. V20 conserva el catálogo
 generado en `ShowControl/shows.autodiscovered.json`, de modo que reiniciar es
 idempotente y una entrada manual siempre tiene prioridad. El rótulo de
 autoimportación es estado técnico: no sustituye `Check Sequence`, `Render All`,

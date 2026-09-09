@@ -176,6 +176,34 @@
       "enabled": true,
       "clientEnabled": false,
       "note": "PRUEBA INTERNA: el audio no corresponde a la edición Radio Edit de 235,573 s; no aprobado para cliente"
+    },
+    {
+      "id": "zapravka-zavod",
+      "title": "ZAPRAVKA ZAVOD",
+      "publicTitle": "Fábrica de Luz",
+      "category": "Experiencia visual",
+      "tagline": "Una maquinaria de ritmo, color ácido y energía industrial.",
+      "clientVisible": true,
+      "playlist": "18 · ZAPRAVKA ZAVOD",
+      "sequence": "%USERPROFILE%/Desktop/shows xlights/18_ZAPRAVKA_ZAVOD_LIGHTMAN/17_ZAPRAVKA_ZAVOD_LIGHTMAN.fseq",
+      "audio": "%USERPROFILE%/Desktop/shows xlights/18_ZAPRAVKA_ZAVOD_LIGHTMAN/Audio/ZAPRAVKA_ZAVOD.mp3",
+      "enabled": true,
+      "clientEnabled": true,
+      "note": "Publicado para el portal del cliente"
+    },
+    {
+      "id": "chicken-banana",
+      "title": "CHICKEN BANANA",
+      "publicTitle": "Fiesta Banana",
+      "category": "Experiencia familiar",
+      "tagline": "Humor, color y un ritmo imposible de quedarse quieto.",
+      "clientVisible": true,
+      "playlist": "20 · CHICKEN BANANA",
+      "sequence": "%USERPROFILE%/Desktop/shows xlights/20_CHICKEN_BANANA_LIGHTMAN/20_CHICKEN_BANANA_LIGHTMAN.fseq",
+      "audio": "%USERPROFILE%/Desktop/shows xlights/20_CHICKEN_BANANA_LIGHTMAN/Audio/Chicken-Banana.mp3",
+      "enabled": true,
+      "clientEnabled": true,
+      "note": "Publicado para el portal del cliente"
     }
   ]
 }
