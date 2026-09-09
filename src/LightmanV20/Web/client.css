@@ -931,7 +931,7 @@ a:focus-visible {
   }
 }
 
-@media (display-mode: fullscreen), (display-mode: standalone) {
+@media (display-mode: standalone) {
   .fullscreen-button {
     display: none;
   }

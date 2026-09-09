@@ -106,8 +106,9 @@ la respuesta de V20 es la fuente de verdad.
 - xSchedule solo es accesible para V20 por `127.0.0.1`; la tablet no lo controla
   directamente.
 
-El monitor de final se arma únicamente para shows lanzados por V20. Evita confundir
-el breve `Idle` inicial con un final y requiere dos lecturas `Idle` consecutivas.
+El monitor de final se arma al lanzar un show desde V20 y también al volver a
+xLights si xSchedule ya está en `Playing` o `Paused`. Evita confundir el breve
+`Idle` inicial con un final y requiere dos lecturas `Idle` consecutivas.
 Una caída del API no interrumpe el show mientras xLights siga enviando Art-Net;
 V20 sólo retorna por desconexión cuando también confirma la ausencia de señal.
 

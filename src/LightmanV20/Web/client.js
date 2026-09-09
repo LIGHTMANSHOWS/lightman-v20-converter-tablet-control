@@ -66,6 +66,8 @@ const state = {
   busyId: null,
   trackingBusyId: null,
   activeId: null,
+  pendingExperienceId: null,
+  pendingExperienceAt: 0,
   unavailable: false,
   hasLoaded: false,
   failures: 0,
@@ -376,6 +378,9 @@ function applyPayload(payload, initial) {
   const trackingChanged = nextTrackingSignature !== state.trackingSignature;
   const activeChanged = activeId !== state.activeId;
   const previousTrackingMode = state.tracking?.activeMode || null;
+  const pendingConfirmed = Boolean(state.pendingExperienceId) && activeId === state.pendingExperienceId;
+  const pendingExpired = Boolean(state.pendingExperienceId) &&
+    Date.now() - state.pendingExperienceAt >= 10000;
 
   state.experiences = experiences;
   state.tracking = tracking;
@@ -385,6 +390,10 @@ function applyPayload(payload, initial) {
   state.failures = 0;
   state.catalogSignature = nextCatalogSignature;
   state.trackingSignature = nextTrackingSignature;
+  if (pendingConfirmed || pendingExpired) {
+    state.pendingExperienceId = null;
+    state.pendingExperienceAt = 0;
+  }
 
   setAvailability('ready', 'Listo');
 
@@ -393,7 +402,12 @@ function applyPayload(payload, initial) {
   if (trackingChanged || initial) renderTracking();
 
   if (!state.busyId && !state.trackingBusyId) {
-    if (initial) {
+    if (pendingExpired) {
+      setActionStatus('La experiencia no llegó a iniciar. V20 volvió a Resolume.', 'error');
+    } else if (pendingConfirmed) {
+      const activeExperience = experiences.find(item => item.id === activeId);
+      setActionStatus(activeExperience ? `${activeExperience.publicTitle} está en escena.` : 'La experiencia está en escena.', 'success');
+    } else if (initial) {
       updateReadyMessage();
     } else if (tracking?.activeMode && tracking.activeMode !== previousTrackingMode) {
       const activeMode = tracking.modes.find(mode => mode.id === tracking.activeMode);
@@ -499,6 +513,8 @@ async function playExperience(item) {
     const payload = await readJson(response);
     if (!response.ok || payload.ok === false) throw new Error('not-started');
 
+    state.pendingExperienceId = item.id;
+    state.pendingExperienceAt = Date.now();
     setActionStatus(`${item.publicTitle} se está preparando…`, 'success');
     elements.successTitle.textContent = `Preparando ${item.publicTitle}`;
     elements.successMessage.textContent = 'V20 recibió la solicitud. Se marcará “En escena” cuando xSchedule confirme la reproducción.';
@@ -535,6 +551,8 @@ async function selectTrackingMode(mode) {
     const payload = await readJson(response);
     if (!response.ok || payload.ok === false) throw new Error('not-started');
 
+    state.pendingExperienceId = null;
+    state.pendingExperienceAt = 0;
     state.tracking.desiredMode = mode.id;
     setActionStatus(`${mode.title} se está preparando.`, 'success');
   } catch {

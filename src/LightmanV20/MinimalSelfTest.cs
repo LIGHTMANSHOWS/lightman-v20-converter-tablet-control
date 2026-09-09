@@ -506,6 +506,10 @@ internal static class MinimalSelfTest
             "fallback conserva xLights cuando el show está pausado");
         Check(!fallback.Observe(fallbackStart.AddSeconds(3), disconnected, true) && fallback.Armed,
             "fallback ignora una falla aislada de xSchedule");
+        Check(!fallback.Observe(fallbackStart.AddSeconds(4), disconnected, true, false, out _) &&
+              !fallback.Observe(fallbackStart.AddSeconds(5), disconnected, true, false, out _) &&
+              !fallback.Observe(fallbackStart.AddSeconds(6), disconnected, true, false, out _) && fallback.Armed,
+            "fallback nunca interpreta una pausa como final durante una desconexión");
         Check(!fallback.Observe(fallbackStart.AddSeconds(4), disconnected, true, true, out _) &&
               !fallback.Observe(fallbackStart.AddSeconds(5), disconnected, true, true, out _) &&
               !fallback.Observe(fallbackStart.AddSeconds(6), disconnected, true, true, out _) && fallback.Armed,

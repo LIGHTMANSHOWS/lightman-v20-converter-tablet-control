@@ -11,6 +11,7 @@ internal sealed class ShowPlaybackFallback
     private readonly object _gate = new();
     private bool _armed;
     private bool _activeObserved;
+    private bool _pausedObserved;
     private DateTime _armedAtUtc;
     private int _idleConfirmations;
     private int _disconnectConfirmations;
@@ -28,6 +29,7 @@ internal sealed class ShowPlaybackFallback
             unchecked { _generation++; }
             _armed = true;
             _activeObserved = false;
+            _pausedObserved = false;
             _armedAtUtc = utcNow;
             _idleConfirmations = 0;
             _disconnectConfirmations = 0;
@@ -67,6 +69,13 @@ internal sealed class ShowPlaybackFallback
             if (!status.Connected)
             {
                 _idleConfirmations = 0;
+                // Pausa es una decisión explícita del operador, no el final del
+                // show. Ni la pérdida de HTTP ni el silencio Art-Net la cancelan.
+                if (_pausedObserved)
+                {
+                    _disconnectConfirmations = 0;
+                    return false;
+                }
                 // Una caída del API no demuestra que el show haya terminado. Si
                 // xLights todavía emite Art-Net, conservamos la fuente y esperamos
                 // a recuperar el estado HTTP.
@@ -91,10 +100,17 @@ internal sealed class ShowPlaybackFallback
 
             _disconnectConfirmations = 0;
             string playback = status.Status.Trim();
-            if (playback.Equals("Playing", StringComparison.OrdinalIgnoreCase) ||
-                playback.Equals("Paused", StringComparison.OrdinalIgnoreCase))
+            if (playback.Equals("Playing", StringComparison.OrdinalIgnoreCase))
             {
                 _activeObserved = true;
+                _pausedObserved = false;
+                _idleConfirmations = 0;
+                return false;
+            }
+            if (playback.Equals("Paused", StringComparison.OrdinalIgnoreCase))
+            {
+                _activeObserved = true;
+                _pausedObserved = true;
                 _idleConfirmations = 0;
                 return false;
             }
@@ -130,6 +146,7 @@ internal sealed class ShowPlaybackFallback
     {
         _armed = false;
         _activeObserved = false;
+        _pausedObserved = false;
         _armedAtUtc = default;
         _idleConfirmations = 0;
         _disconnectConfirmations = 0;

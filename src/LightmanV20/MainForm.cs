@@ -223,6 +223,14 @@ internal sealed class MainForm : Form
         ResetRate();
         RefreshControls();
         PublishFrame(true);
+        if (source == "xlights")
+        {
+            var playback = _scheduler.GetStatus(force: true);
+            if (playback.Connected &&
+                (playback.Status.Equals("Playing", StringComparison.OrdinalIgnoreCase) ||
+                 playback.Status.Equals("Paused", StringComparison.OrdinalIgnoreCase)))
+                _showFallback.Arm(DateTime.UtcNow);
+        }
         return true;
     }
 
@@ -268,13 +276,30 @@ internal sealed class MainForm : Form
 
     private TabletActionResult PauseShow()
     {
+        if (InvokeRequired)
+        {
+            try { return (TabletActionResult)Invoke(new Func<TabletActionResult>(PauseShow)); }
+            catch { return TabletActionResult.Fail("V20 no pudo cambiar la pausa del show."); }
+        }
+        var before = _scheduler.GetStatus(force: true);
         var result = _scheduler.TogglePause();
         lock (_stateGate) _schedulerActionError = result.Ok ? "" : result.Error;
+        if (result.Ok && before.Status.Equals("Paused", StringComparison.OrdinalIgnoreCase))
+        {
+            string source;
+            lock (_stateGate) source = _source;
+            if (source == "xlights") _showFallback.Arm(DateTime.UtcNow);
+        }
         return result.Ok ? TabletActionResult.Success() : TabletActionResult.Fail(result.Error);
     }
 
     private TabletActionResult StopShow()
     {
+        if (InvokeRequired)
+        {
+            try { return (TabletActionResult)Invoke(new Func<TabletActionResult>(StopShow)); }
+            catch { return TabletActionResult.Fail("V20 no pudo detener el show."); }
+        }
         var result = _scheduler.Stop();
         lock (_stateGate) _schedulerActionError = result.Ok ? "" : result.Error;
         if (!result.Ok) return TabletActionResult.Fail(result.Error);
