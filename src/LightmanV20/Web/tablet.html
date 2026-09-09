@@ -26,6 +26,21 @@
         <h2>SHOWS XLIGHTS</h2>
         <span id="scheduler-state" class="pill">XSCHEDULE</span>
       </div>
+      <div id="import-summary" class="import-summary" role="status" aria-live="polite" hidden>
+        <div class="import-summary__heading">
+          <div>
+            <strong id="import-title">CARPETAS VERIFICADAS</strong>
+            <small>SOLO CONTROL INTERNO</small>
+          </div>
+          <span id="import-state" class="import-state">LISTO</span>
+        </div>
+        <div class="import-counts" aria-label="Resultado de la detección automática">
+          <span><b id="import-added">0</b> nuevos</span>
+          <span><b id="import-incomplete">0</b> incompletos</span>
+          <span><b id="import-errors">0</b> errores</span>
+        </div>
+        <p id="import-message"></p>
+      </div>
       <div id="shows" class="shows" aria-label="Shows disponibles"></div>
       <div class="transport" role="group" aria-label="Transporte de xSchedule">
         <button id="pause" class="secondary"><span>PAUSAR / CONTINUAR</span></button>

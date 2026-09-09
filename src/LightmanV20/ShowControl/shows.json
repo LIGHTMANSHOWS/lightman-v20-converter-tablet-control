@@ -2,6 +2,8 @@
   "baseUrl": "http://127.0.0.1:80/",
   "timeoutMs": 1200,
   "pauseWhenLeavingXlights": true,
+  "autoDiscoverShows": true,
+  "showFolderRoot": "%USERPROFILE%/Desktop/shows xlights",
   "shows": [
     {
       "id": "skeewiff",

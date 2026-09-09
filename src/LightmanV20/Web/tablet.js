@@ -5,6 +5,13 @@ const stop=document.getElementById('stop');
 const shows=document.getElementById('shows');
 const schedulerState=document.getElementById('scheduler-state');
 const schedulerDetail=document.getElementById('scheduler-detail');
+const importSummary=document.getElementById('import-summary');
+const importTitle=document.getElementById('import-title');
+const importState=document.getElementById('import-state');
+const importAdded=document.getElementById('import-added');
+const importIncomplete=document.getElementById('import-incomplete');
+const importErrors=document.getElementById('import-errors');
+const importMessage=document.getElementById('import-message');
 const stateLabel=document.getElementById('state');
 const active=document.getElementById('active');
 const detail=document.getElementById('detail');
@@ -34,18 +41,33 @@ test.addEventListener('click',()=>post('/api/test',{enabled:!test.classList.cont
 pause.addEventListener('click',()=>post('/api/show/pause'));
 stop.addEventListener('click',()=>post('/api/show/stop'));
 
-function renderShows(items,currentPlaylist){
-  const signature=JSON.stringify(items||[]);
+function renderShows(items,currentPlaylist,sync){
+  const syncBlocksAuto=Boolean(sync&&(sync.skippedBusy||sync.restartRequired||sync.waitingForXSchedule||countOf(sync.errors)>0));
+  const invalidPlaylists=new Set((sync?.invalidCandidates||[]).map(issue=>String(issue.playlist||'')));
+  const signature=JSON.stringify([items||[],syncBlocksAuto,sync?.skippedBusy,sync?.restartRequired,
+    sync?.waitingForXSchedule,[...invalidPlaylists]]);
   if(signature!==showSignature){
     showSignature=signature;
     shows.replaceChildren(...(items||[]).map(item=>{
+      const invalidCandidate=Boolean(item.autoDiscovered&&invalidPlaylists.has(String(item.playlist||'')));
+      const waitingForSchedule=Boolean(item.autoDiscovered&&
+        (item.scheduleReady===false||(item.scheduleReady==null&&(syncBlocksAuto||invalidCandidate))));
+      const playable=Boolean(item.enabled&&item.ready&&!waitingForSchedule);
       const button=document.createElement('button');
-      button.className='show'+(item.enabled?'':' pending');
-      button.dataset.show=item.id;button.dataset.enabled=String(Boolean(item.enabled&&item.ready));
-      button.disabled=!item.enabled||!item.ready;
+      button.className='show'+(playable?'':' pending')+(item.autoDiscovered?' auto-imported':'');
+      button.dataset.show=item.id;button.dataset.enabled=String(playable);
+      button.disabled=!playable;
       const title=document.createElement('strong');title.textContent=item.title;
-      const note=document.createElement('em');note.textContent=item.ready?(item.note||'LISTO'):'ARCHIVO NO DISPONIBLE';
+      const note=document.createElement('em');
+      note.textContent=waitingForSchedule?(invalidCandidate?'PENDIENTE: ARCHIVOS DEL SHOW INVÁLIDOS':
+        sync.skippedBusy?'PENDIENTE: XSCHEDULE ESTÁ OCUPADO':
+        sync.waitingForXSchedule?'PENDIENTE: ABRE XSCHEDULE Y REINICIA V20':
+        sync.restartRequired?'PENDIENTE: REINICIA XSCHEDULE Y V20':'PENDIENTE: ERROR DE XSCHEDULE'):
+        !item.ready?'ARCHIVO NO DISPONIBLE':(item.note||'LISTO');
       button.append(title,note);
+      if(item.autoDiscovered){
+        const origin=document.createElement('i');origin.textContent='AUTO · INTERNO';button.append(origin);
+      }
       button.addEventListener('click',()=>post('/api/show/play',{id:item.id}));
       return button;
     }));
@@ -54,6 +76,45 @@ function renderShows(items,currentPlaylist){
     const item=(items||[]).find(s=>s.id===button.dataset.show);
     button.classList.toggle('active',Boolean(currentPlaylist&&item&&item.playlist===currentPlaylist));
   });
+}
+
+function countOf(value){
+  if(Array.isArray(value))return value.length;
+  const count=Number(value);return Number.isFinite(count)&&count>0?Math.trunc(count):0;
+}
+
+function renderAutoImport(report,sync,items){
+  if(!report&&!sync){importSummary.hidden=true;return}
+  report=report||{};sync=sync||{};
+  const added=countOf(report.added);
+  const incomplete=Math.max(countOf(report.incomplete),countOf(sync.invalidCandidates));
+  const unresolvedAuto=(items||[]).filter(item=>item.autoDiscovered&&item.scheduleReady===false).length;
+  const errors=countOf(report.errors)+(unresolvedAuto>0?countOf(sync.errors):0);
+  const syncPending=Boolean((sync.skippedBusy||sync.restartRequired||sync.waitingForXSchedule)&&unresolvedAuto>0);
+  const hasProblem=incomplete>0||errors>0||syncPending||(added>0&&report.persisted===false);
+  const addedIds=Array.isArray(report.addedShows)?report.addedShows:[];
+  const addedNames=addedIds.map(id=>(items||[]).find(show=>show.id===id)?.title||id).filter(Boolean);
+
+  importSummary.hidden=false;
+  importSummary.classList.toggle('has-warning',hasProblem);
+  importSummary.classList.toggle('has-new',added>0&&!hasProblem);
+  importTitle.textContent=errors>0?'AUTOIMPORTACIÓN CON ERRORES':syncPending?'PENDIENTE EN XSCHEDULE':
+    incomplete>0?'HAY CARPETAS INCOMPLETAS':added>0?'NUEVOS SHOWS INTERNOS':'CARPETAS VERIFICADAS';
+  importState.textContent=errors>0?'ERROR':sync.skippedBusy?'PRÓXIMO INICIO':sync.restartRequired?'REINICIAR':
+    incomplete>0?'REVISAR':added>0?'IMPORTADO':'SIN CAMBIOS';
+  importAdded.textContent=String(added);
+  importIncomplete.textContent=String(incomplete);
+  importErrors.textContent=String(errors);
+  const discoveryMessage=String(report.message||'').trim();
+  const syncMessage=!syncPending&&(sync.skippedBusy||sync.restartRequired||sync.waitingForXSchedule)?
+    'xSchedule ya confirmó las playlists autoimportadas.':
+    sync.skippedBusy?'xSchedule está ocupado: se importará al próximo inicio.':
+    sync.waitingForXSchedule?'Abre xSchedule y vuelve a iniciar V20 para importar de forma segura.':
+    sync.restartRequired?'Reinicia xSchedule y V20 para confirmar las playlists nuevas.':
+    sync.runtimeReloaded?'xSchedule actualizado y listo.':String(sync.message||'').trim();
+  const addedMessage=addedNames.length?`Agregados: ${addedNames.join(', ')}.`:'';
+  importMessage.textContent=[addedMessage,discoveryMessage,syncMessage].filter(Boolean).join(' ')||
+    `${countOf(report.scannedFolders)} carpetas revisadas al iniciar V20.`;
 }
 
 function render(s){
@@ -72,7 +133,8 @@ function render(s){
   schedulerDetail.textContent=xs.error|| (xs.playlist?`${xs.playlist}${xs.step?' · '+xs.step:''}`:'xSchedule listo para lanzar un show');
   pause.disabled=busy||!xs.connected||String(xs.status).toLowerCase()==='idle';
   stop.disabled=busy||!xs.connected||String(xs.status).toLowerCase()==='idle';
-  renderShows(s.shows,xs.playlist);
+  renderAutoImport(s.autoImport,s.scheduleSync,s.shows);
+  renderShows(s.shows,xs.playlist,s.scheduleSync);
 }
 
 function showActionError(message){

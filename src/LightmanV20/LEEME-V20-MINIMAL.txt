@@ -34,6 +34,18 @@ DOS SERVIDORES PARA TABLET
   únicamente para pruebas. Sus audios todavía no están aprobados/sincronizados.
 - Ciudad de Neón sigue sin poder ejecutarse porque todavía no existe su FSEQ.
 
+AUTOIMPORTACIÓN DE SHOWS
+- Al iniciar, V20 revisa C:\Users\lightman\Desktop\shows xlights.
+- Cada carpeta nueva debe tener un FSEQ renderizado válido y su audio. V20 usa el
+  audio indicado por mediaFile en el XSQ principal cuando existe.
+- El show se añade al panel INTERNO y a xSchedule, pero nunca se publica
+  automáticamente en el portal CLIENTE.
+- Si xSchedule está reproduciendo o pausado, V20 no lo modifica: deja la
+  importación pendiente para el próximo inicio.
+- Si xSchedule no responde, V20 no toca su archivo. Abre xSchedule y vuelve a
+  iniciar V20 para importar sin arriesgar cambios manuales no guardados.
+- Antes de modificar xlights.xschedule se crea un respaldo automático.
+
 SALIDAS FIJAS
 - Banderas: 192.168.1.201–205 y 192.168.1.207, LMP3 UDP 7777, IDs 1–5 y 7.
 - Árbol: 192.168.1.91, Art-Net U0–14.

@@ -11,10 +11,29 @@ if ($sourceHash -ne $portableHash) {
     throw 'Las copias del manifiesto V4 no coinciden.'
 }
 
+$PythonExecutable = $null
+$PythonUsesLauncher = $false
 if (Get-Command py -ErrorAction SilentlyContinue) {
+    py -3 --version *> $null
+    if ($LASTEXITCODE -eq 0) { $PythonUsesLauncher = $true }
+}
+if (-not $PythonUsesLauncher) {
+    $PythonExecutable = (Get-Command python -ErrorAction SilentlyContinue).Source
+}
+if (-not $PythonUsesLauncher -and -not $PythonExecutable) {
+    $PythonInstallRoot = Join-Path $env:LOCALAPPDATA 'Programs\Python'
+    foreach ($PythonVersion in 314..38) {
+        $PythonCandidate = Join-Path $PythonInstallRoot "Python$PythonVersion\python.exe"
+        if (Test-Path -LiteralPath $PythonCandidate) {
+            $PythonExecutable = $PythonCandidate
+            break
+        }
+    }
+}
+if ($PythonUsesLauncher) {
     py -3 (Join-Path $RepoRoot 'integration\Tests\verify_package.py')
-} elseif (Get-Command python -ErrorAction SilentlyContinue) {
-    python (Join-Path $RepoRoot 'integration\Tests\verify_package.py')
+} elseif ($PythonExecutable) {
+    & $PythonExecutable (Join-Path $RepoRoot 'integration\Tests\verify_package.py')
 } else {
     throw 'Se requiere Python 3 para validar el paquete de integración.'
 }
@@ -27,5 +46,7 @@ dotnet build $Project -c Release
 if ($LASTEXITCODE -ne 0) { throw 'Falló la compilación de V20.' }
 dotnet run --project $Project -c Release -- --self-test-minimal
 if ($LASTEXITCODE -ne 0) { throw 'Falló el self-test de V20.' }
+dotnet run --project $Project -c Release --no-build -- --self-test-xschedule-sync
+if ($LASTEXITCODE -ne 0) { throw 'Falló el self-test aislado del sincronizador xSchedule.' }
 
 Write-Host "VALIDACION COMPLETA · SHA256 $sourceHash"

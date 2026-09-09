@@ -20,6 +20,7 @@ node_modules/
 *.pfx
 secrets*.json
 **/shows.local.json
+**/shows.autodiscovered.json
 
 # Local settings and generated packages
 .vs/

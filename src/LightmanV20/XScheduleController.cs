@@ -17,6 +17,8 @@ internal sealed class ShowLaunchDefinition
     public bool Enabled { get; init; } = true;
     public bool ClientEnabled { get; init; } = true;
     public string Note { get; init; } = "";
+    public bool AutoDiscovered { get; init; }
+    public string SourceFolder { get; init; } = "";
 }
 
 internal sealed class XScheduleSettings
@@ -24,6 +26,8 @@ internal sealed class XScheduleSettings
     public string BaseUrl { get; init; } = "http://127.0.0.1:80/";
     public int TimeoutMs { get; init; } = 1200;
     public bool PauseWhenLeavingXlights { get; init; } = true;
+    public bool AutoDiscoverShows { get; init; }
+    public string ShowFolderRoot { get; init; } = "%USERPROFILE%/Desktop/shows xlights";
     public List<ShowLaunchDefinition> Shows { get; init; } = [];
 }
 
@@ -55,8 +59,11 @@ internal sealed class XScheduleController : IDisposable
     private readonly bool _configured;
     private XScheduleStatus _cached;
     private DateTime _cachedAtUtc = DateTime.MinValue;
+    private readonly HashSet<string> _runtimePlaylists = new(StringComparer.OrdinalIgnoreCase);
+    private DateTime _runtimePlaylistsAtUtc = DateTime.MinValue;
 
-    private XScheduleController(XScheduleSettings settings, bool configured, string configurationError)
+    private XScheduleController(XScheduleSettings settings, bool configured, string configurationError,
+        AutoDiscoveryReport discoveryReport, XScheduleSyncReport scheduleSyncReport)
     {
         _settings = settings;
         _configured = configured;
@@ -66,37 +73,62 @@ internal sealed class XScheduleController : IDisposable
             BaseAddress = NormalizeBaseAddress(settings.BaseUrl),
             Timeout = TimeSpan.FromMilliseconds(Math.Clamp(settings.TimeoutMs, 300, 5000)),
         };
+        DiscoveryReport = discoveryReport;
+        ScheduleSyncReport = scheduleSyncReport;
     }
 
     public IReadOnlyList<ShowLaunchDefinition> Shows => _settings.Shows;
     public bool PauseWhenLeavingXlights => _settings.PauseWhenLeavingXlights;
+    public AutoDiscoveryReport DiscoveryReport { get; }
+    public XScheduleSyncReport ScheduleSyncReport { get; }
 
-    public static XScheduleController Load(string path)
+    public static XScheduleController Load(string path, bool runDiscovery = true)
     {
         try
         {
             if (!File.Exists(path))
-                return new(new XScheduleSettings(), false, "Falta ShowControl/shows.json.");
+                return new(new XScheduleSettings(), false, "Falta ShowControl/shows.json.",
+                    AutoDiscoveryReport.Disabled(""), XScheduleSyncReport.NotRun());
             var settings = JsonSerializer.Deserialize<XScheduleSettings>(File.ReadAllText(path), LiveEngine.Json)
                 ?? throw new InvalidDataException("Configuración vacía.");
             Validate(settings);
-            return new(settings, true, "");
+            var discovery = runDiscovery
+                ? ShowFolderDiscovery.Apply(settings, path)
+                : AutoDiscoveryReport.Disabled(ExpandPath(settings.ShowFolderRoot));
+            Validate(settings);
+            XScheduleSyncReport scheduleSync = XScheduleSyncReport.NotRun();
+            if (runDiscovery && settings.AutoDiscoverShows)
+            {
+                string root = ExpandPath(settings.ShowFolderRoot);
+                var candidates = settings.Shows.Where(show => show.AutoDiscovered).Select(show =>
+                    new XSchedulePlaylistCandidate(show.Playlist, show.Title, show.Sequence, show.Audio, show.SourceFolder));
+                scheduleSync = XSchedulePlaylistSynchronizer.Synchronize(
+                    root, Path.Combine(root, "xlights.xschedule"), candidates, settings.BaseUrl, settings.TimeoutMs);
+            }
+            return new(settings, true, "", discovery, scheduleSync);
         }
         catch (Exception ex)
         {
-            return new(new XScheduleSettings(), false, "Configuración de xSchedule: " + ex.Message);
+            return new(new XScheduleSettings(), false, "Configuración de xSchedule: " + ex.Message,
+                AutoDiscoveryReport.Disabled(""), XScheduleSyncReport.NotRun());
         }
     }
 
-    public object[] ShowsForTablet() => _settings.Shows.Select(show => new
+    public object[] ShowsForTablet()
     {
-        id = show.Id,
-        title = show.Title,
-        playlist = show.Playlist,
-        enabled = show.Enabled,
-        ready = File.Exists(ExpandPath(show.Sequence)) && File.Exists(ExpandPath(show.Audio)),
-        note = show.Note,
-    }).Cast<object>().ToArray();
+        RefreshRuntimePlaylistsIfNeeded();
+        return _settings.Shows.Select(show => new
+        {
+            id = show.Id,
+            title = show.Title,
+            playlist = show.Playlist,
+            enabled = show.Enabled,
+            ready = File.Exists(ExpandPath(show.Sequence)) && File.Exists(ExpandPath(show.Audio)),
+            scheduleReady = IsAutoPlaylistReady(show),
+            note = show.Note,
+            autoDiscovered = show.AutoDiscovered,
+        }).Cast<object>().ToArray();
+    }
 
     public object[] ExperiencesForClient() => _settings.Shows
         .Where(show => show.ClientVisible && !string.IsNullOrWhiteSpace(show.PublicTitle))
@@ -145,9 +177,43 @@ internal sealed class XScheduleController : IDisposable
         var show = _settings.Shows.FirstOrDefault(s => s.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
         if (show is null) return XScheduleAction.Fail("Show desconocido.");
         if (!show.Enabled) return XScheduleAction.Fail("Este show todavía está deshabilitado.");
+        RefreshRuntimePlaylistsIfNeeded(force: true);
+        if (!IsAutoPlaylistReady(show))
+            return XScheduleAction.Fail("La playlist autoimportada todavía no está disponible en xSchedule.");
         if (!File.Exists(ExpandPath(show.Sequence))) return XScheduleAction.Fail("No se encontró el archivo FSEQ del show.");
         if (!File.Exists(ExpandPath(show.Audio))) return XScheduleAction.Fail("No se encontró el audio del show.");
         return Command("Play specified playlist", show.Playlist);
+    }
+
+    private bool IsAutoPlaylistReady(ShowLaunchDefinition show)
+    {
+        if (!show.AutoDiscovered) return true;
+        if (ScheduleSyncReport.InvalidCandidates.Any(issue =>
+            issue.Playlist.Equals(show.Playlist, StringComparison.OrdinalIgnoreCase))) return false;
+        bool reportBlocks = ScheduleSyncReport.SkippedBusy || ScheduleSyncReport.RestartRequired ||
+            ScheduleSyncReport.WaitingForXSchedule || ScheduleSyncReport.Errors.Count > 0;
+        return !reportBlocks || _runtimePlaylists.Contains(show.Playlist);
+    }
+
+    private void RefreshRuntimePlaylistsIfNeeded(bool force = false)
+    {
+        if (!_settings.Shows.Any(show => show.AutoDiscovered) ||
+            !(ScheduleSyncReport.SkippedBusy || ScheduleSyncReport.RestartRequired ||
+              ScheduleSyncReport.WaitingForXSchedule || ScheduleSyncReport.Errors.Count > 0)) return;
+        lock (_gate)
+        {
+            if (!force && DateTime.UtcNow - _runtimePlaylistsAtUtc < TimeSpan.FromSeconds(2)) return;
+            _runtimePlaylistsAtUtc = DateTime.UtcNow;
+            try
+            {
+                using var json = GetJson("xScheduleQuery", "Query", "GetPlayLists", "Parameters", "");
+                var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                CollectPlaylistNames(json.RootElement, names);
+                _runtimePlaylists.Clear();
+                _runtimePlaylists.UnionWith(names);
+            }
+            catch { }
+        }
     }
 
     public XScheduleAction PauseIfPlaying()
@@ -228,6 +294,30 @@ internal sealed class XScheduleController : IDisposable
             }
         }
         return null;
+    }
+
+    private static void CollectPlaylistNames(JsonElement value, ISet<string> names)
+    {
+        if (value.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var property in value.EnumerateObject())
+            {
+                if (property.Name.Equals("playlists", StringComparison.OrdinalIgnoreCase) &&
+                    property.Value.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var item in property.Value.EnumerateArray())
+                    {
+                        string? name = FindString(item, "name", "Name");
+                        if (!string.IsNullOrWhiteSpace(name)) names.Add(name);
+                    }
+                }
+                else CollectPlaylistNames(property.Value, names);
+            }
+        }
+        else if (value.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in value.EnumerateArray()) CollectPlaylistNames(item, names);
+        }
     }
 
     private static void Validate(XScheduleSettings settings)

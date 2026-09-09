@@ -53,7 +53,8 @@ internal sealed class MainForm : Form
         MinimumSize = new Size(960, 620);
         BackColor = Color.FromArgb(4, 7, 12);
         _live = new LiveEngine(_artNet, null, automaticOutput: !previewOnly);
-        _scheduler = XScheduleController.Load(Path.Combine(AppContext.BaseDirectory, "ShowControl", "shows.json"));
+        _scheduler = XScheduleController.Load(
+            Path.Combine(AppContext.BaseDirectory, "ShowControl", "shows.json"), runDiscovery: !previewOnly);
         LoadSettings();
 
         var toolbar = BuildToolbar();
@@ -352,6 +353,8 @@ internal sealed class MainForm : Form
                     length = scheduler.Length,
                     error = _schedulerActionError.Length > 0 ? _schedulerActionError : scheduler.Error,
                 },
+                autoImport = _scheduler.DiscoveryReport,
+                scheduleSync = _scheduler.ScheduleSyncReport,
                 shows,
                 endpoints = new { resolume = "127.0.0.2:6454", xlights = "127.0.0.3:6454",
                     tracking = "IP LAN de V20:6454" },

@@ -42,6 +42,25 @@ Las rutas usan `%USERPROFILE%` para no fijar un nombre de usuario; ajústalas en
 copia local si los shows se alojan en otro lugar. Los archivos `.fseq`, audio y
 proyectos xLights no se guardan en este repositorio.
 
+## Descubrimiento automático al iniciar
+
+Con `autoDiscoverShows: true`, V20 revisa cada subcarpeta directa de
+`showFolderRoot` al iniciar. Sólo acepta una carpeta nueva cuando encuentra un
+FSEQ renderizado y el audio indicado por `mediaFile` en el XSQ de la raíz. Se
+prioriza el FSEQ de la raíz y se excluyen `Fuente_original`, `Backup` y
+`Validacion`.
+
+Los hallazgos se habilitan únicamente en el control interno; nunca aparecen en
+el portal del cliente. `shows.json` no se modifica. V20 conserva el catálogo
+generado en `ShowControl/shows.autodiscovered.json`, de modo que reiniciar es
+idempotente y una entrada manual siempre tiene prioridad. El rótulo de
+autoimportación es estado técnico: no sustituye `Check Sequence`, `Render All`,
+la revisión audiovisual ni la prueba física.
+
+La escritura sólo ocurre cuando la API confirma que xSchedule está en `Idle`.
+Si no responde o está reproduciendo/pausado, V20 no toca `xlights.xschedule` y
+deja la importación pendiente para un siguiente inicio seguro.
+
 ## Comportamiento desde la tablet
 
 - Tocar un show ordena a xSchedule reproducir la playlist y selecciona `XLIGHTS`.

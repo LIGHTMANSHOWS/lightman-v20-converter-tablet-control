@@ -404,7 +404,19 @@ internal static class MinimalSelfTest
         string playedShow = "";
         bool testedValue = false;
         string web = Path.Combine(AppContext.BaseDirectory, "Web");
-        using (var catalog = XScheduleController.Load(Path.Combine(AppContext.BaseDirectory, "ShowControl", "shows.json")))
+        string internalHtml = File.ReadAllText(Path.Combine(web, "tablet.html"));
+        string internalJs = File.ReadAllText(Path.Combine(web, "tablet.js"));
+        string clientHtml = File.ReadAllText(Path.Combine(web, "client.html"));
+        string clientJs = File.ReadAllText(Path.Combine(web, "client.js"));
+        Check(internalHtml.Contains("SOLO CONTROL INTERNO", StringComparison.Ordinal) &&
+              internalJs.Contains("renderAutoImport", StringComparison.Ordinal) &&
+              internalJs.Contains("scheduleSync", StringComparison.Ordinal) &&
+              !clientHtml.Contains("import-summary", StringComparison.Ordinal) &&
+              !clientJs.Contains("autoImport", StringComparison.Ordinal) &&
+              !clientJs.Contains("scheduleSync", StringComparison.Ordinal),
+            "resultado de autoimportación existe sólo en el control interno");
+        using (var catalog = XScheduleController.Load(
+                   Path.Combine(AppContext.BaseDirectory, "ShowControl", "shows.json"), runDiscovery: false))
         {
             Check(catalog.Shows.Count == 13 && catalog.Shows.Count(show => show.Enabled) == 12 &&
                   catalog.Shows.Count(show => show.ClientEnabled) == 10,
@@ -632,6 +644,7 @@ internal static class MinimalSelfTest
                 "API cliente rechaza tipo, JSON, origen y preflight no autorizados");
         }
 
+        ShowFolderDiscoverySelfTest.Run(Check);
         File.WriteAllLines(Path.Combine(AppContext.BaseDirectory, "SELFTEST-MINIMAL.txt"), Results);
     }
 }
