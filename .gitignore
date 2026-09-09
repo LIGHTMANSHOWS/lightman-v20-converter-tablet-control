@@ -1,0 +1,45 @@
+# .NET
+**/bin/
+**/obj/
+*.user
+*.suo
+
+# Runtime state and WebView2 profiles
+*.exe.WebView2/
+EBWebView/
+SELFTEST-*.txt
+
+# Python / Node caches
+__pycache__/
+*.py[cod]
+node_modules/
+.env
+.env.*
+*.pem
+*.key
+*.pfx
+secrets*.json
+**/shows.local.json
+
+# Local settings and generated packages
+.vs/
+.idea/
+.vscode/
+publish/
+dist/
+*.zip
+*.exe
+*.dll
+*.pdb
+
+# Shows and media are intentionally external
+*.fseq
+*.xsq
+*.xsqz
+*.mp3
+*.wav
+*.mp4
+
+# OS
+.DS_Store
+Thumbs.db

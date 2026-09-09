@@ -1,0 +1,14 @@
+html.minimal .control-panel,
+html.minimal .scene-meta,
+html.minimal .layer-key,
+html.minimal #notice { display: none !important; }
+html.minimal .topbar { display: none !important; }
+html.minimal .brand-mark { border-color: rgba(65,229,188,.62); color: #41e5bc; }
+html.minimal .top-status { padding: 8px 12px; border: 1px solid rgba(255,255,255,.1); background: rgba(5,10,16,.66); }
+html.minimal #viewport { cursor: grab; }
+html.minimal #viewport:active { cursor: grabbing; }
+@media(max-width:700px){
+  html.minimal .brand small{display:none}
+  html.minimal .top-status{display:flex;font-size:10px}
+  html.minimal .topbar{padding:0 10px}
+}

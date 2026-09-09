@@ -1,0 +1,290 @@
+{
+  "rods": [
+    {
+      "name": "A01",
+      "count": 100,
+      "old_pixel_start": 15300,
+      "pixel_start": 15300,
+      "universe": 90,
+      "channel": 1,
+      "direction": "forward"
+    },
+    {
+      "name": "A02",
+      "count": 100,
+      "old_pixel_start": 15400,
+      "pixel_start": 15400,
+      "universe": 90,
+      "channel": 301,
+      "direction": "reverse"
+    },
+    {
+      "name": "A03",
+      "count": 100,
+      "old_pixel_start": 15500,
+      "pixel_start": 15500,
+      "universe": 91,
+      "channel": 91,
+      "direction": "forward"
+    },
+    {
+      "name": "A04",
+      "count": 100,
+      "old_pixel_start": 15600,
+      "pixel_start": 15600,
+      "universe": 91,
+      "channel": 391,
+      "direction": "reverse"
+    },
+    {
+      "name": "A05",
+      "count": 100,
+      "old_pixel_start": 15700,
+      "pixel_start": 15700,
+      "universe": 92,
+      "channel": 181,
+      "direction": "forward"
+    },
+    {
+      "name": "A06",
+      "count": 100,
+      "old_pixel_start": 15800,
+      "pixel_start": 15800,
+      "universe": 92,
+      "channel": 481,
+      "direction": "reverse"
+    },
+    {
+      "name": "A07",
+      "count": 100,
+      "old_pixel_start": 15980,
+      "pixel_start": 15980,
+      "universe": 94,
+      "channel": 1,
+      "direction": "forward"
+    },
+    {
+      "name": "A08",
+      "count": 100,
+      "old_pixel_start": 16080,
+      "pixel_start": 16080,
+      "universe": 94,
+      "channel": 301,
+      "direction": "reverse"
+    },
+    {
+      "name": "A09",
+      "count": 99,
+      "old_pixel_start": 16180,
+      "pixel_start": 16180,
+      "universe": 95,
+      "channel": 91,
+      "direction": "forward"
+    },
+    {
+      "name": "A10",
+      "count": 100,
+      "old_pixel_start": 16280,
+      "pixel_start": 16279,
+      "universe": 95,
+      "channel": 388,
+      "direction": "reverse"
+    },
+    {
+      "name": "A11",
+      "count": 100,
+      "old_pixel_start": 16380,
+      "pixel_start": 16379,
+      "universe": 96,
+      "channel": 178,
+      "direction": "forward"
+    },
+    {
+      "name": "A12",
+      "count": 100,
+      "old_pixel_start": 16480,
+      "pixel_start": 16479,
+      "universe": 96,
+      "channel": 478,
+      "direction": "reverse"
+    },
+    {
+      "name": "B07",
+      "count": 100,
+      "old_pixel_start": 17340,
+      "pixel_start": 17340,
+      "universe": 102,
+      "channel": 1,
+      "direction": "forward"
+    },
+    {
+      "name": "B06",
+      "count": 100,
+      "old_pixel_start": 17160,
+      "pixel_start": 17160,
+      "universe": 100,
+      "channel": 481,
+      "direction": "reverse"
+    },
+    {
+      "name": "B05",
+      "count": 100,
+      "old_pixel_start": 17060,
+      "pixel_start": 17060,
+      "universe": 100,
+      "channel": 181,
+      "direction": "forward"
+    },
+    {
+      "name": "B04",
+      "count": 100,
+      "old_pixel_start": 16960,
+      "pixel_start": 16960,
+      "universe": 99,
+      "channel": 391,
+      "direction": "reverse"
+    },
+    {
+      "name": "B03",
+      "count": 100,
+      "old_pixel_start": 16860,
+      "pixel_start": 16860,
+      "universe": 99,
+      "channel": 91,
+      "direction": "forward"
+    },
+    {
+      "name": "B02",
+      "count": 100,
+      "old_pixel_start": 16760,
+      "pixel_start": 16760,
+      "universe": 98,
+      "channel": 301,
+      "direction": "reverse"
+    },
+    {
+      "name": "B01",
+      "count": 100,
+      "old_pixel_start": 16660,
+      "pixel_start": 16660,
+      "universe": 98,
+      "channel": 1,
+      "direction": "forward"
+    },
+    {
+      "name": "B12",
+      "count": 100,
+      "old_pixel_start": 17840,
+      "pixel_start": 17839,
+      "universe": 104,
+      "channel": 478,
+      "direction": "reverse"
+    },
+    {
+      "name": "B11",
+      "count": 100,
+      "old_pixel_start": 17740,
+      "pixel_start": 17739,
+      "universe": 104,
+      "channel": 178,
+      "direction": "forward"
+    },
+    {
+      "name": "B10",
+      "count": 99,
+      "old_pixel_start": 17640,
+      "pixel_start": 17640,
+      "universe": 103,
+      "channel": 391,
+      "direction": "reverse"
+    },
+    {
+      "name": "B09",
+      "count": 100,
+      "old_pixel_start": 17540,
+      "pixel_start": 17540,
+      "universe": 103,
+      "channel": 91,
+      "direction": "forward"
+    },
+    {
+      "name": "B08",
+      "count": 100,
+      "old_pixel_start": 17440,
+      "pixel_start": 17440,
+      "universe": 102,
+      "channel": 301,
+      "direction": "reverse"
+    }
+  ],
+  "chains": [
+    {
+      "controller": 101,
+      "output": 1,
+      "start": 15300,
+      "count": 600,
+      "reserved_count": 600,
+      "unassigned_tail_pixels": [],
+      "rods": [
+        "A01",
+        "A02",
+        "A03",
+        "A04",
+        "A05",
+        "A06"
+      ]
+    },
+    {
+      "controller": 101,
+      "output": 2,
+      "start": 15980,
+      "count": 599,
+      "reserved_count": 600,
+      "unassigned_tail_pixels": [
+        16579
+      ],
+      "rods": [
+        "A07",
+        "A08",
+        "A09",
+        "A10",
+        "A11",
+        "A12"
+      ]
+    },
+    {
+      "controller": 102,
+      "output": 1,
+      "start": 16660,
+      "count": 600,
+      "reserved_count": 600,
+      "unassigned_tail_pixels": [],
+      "rods": [
+        "B01",
+        "B02",
+        "B03",
+        "B04",
+        "B05",
+        "B06"
+      ]
+    },
+    {
+      "controller": 102,
+      "output": 2,
+      "start": 17340,
+      "count": 599,
+      "reserved_count": 600,
+      "unassigned_tail_pixels": [
+        17939
+      ],
+      "rods": [
+        "B07",
+        "B08",
+        "B09",
+        "B10",
+        "B11",
+        "B12"
+      ]
+    }
+  ]
+}

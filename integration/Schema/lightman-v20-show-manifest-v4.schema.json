@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lightman.local/schema/lightman-v20-show-manifest-v4.schema.json",
+  "title": "LIGHTMAN V20 portable show manifest",
+  "type": "object",
+  "required": ["format", "schema_version", "configuration", "outputs", "elements"],
+  "properties": {
+    "format": { "const": "lightman-v20-show-manifest" },
+    "schema_version": { "const": 4 },
+    "configuration": {
+      "type": "object",
+      "required": ["mapping_revision", "bridge_routes", "visual_layout"],
+      "properties": {
+        "mapping_revision": { "const": "V20-MINIMAL-4-PORTABLE-VISUAL-BRIDGE" },
+        "bridge_routes": {
+          "type": "array",
+          "minItems": 15,
+          "maxItems": 15,
+          "items": { "$ref": "#/$defs/route" }
+        },
+        "visual_layout": {
+          "type": "object",
+          "required": ["schema_version", "coordinate_system", "pixel_mapping", "flags", "ceiling", "waves"],
+          "properties": { "schema_version": { "const": 4 } }
+        }
+      }
+    },
+    "outputs": { "type": "array" },
+    "elements": {
+      "type": "array",
+      "minItems": 52,
+      "maxItems": 52,
+      "items": { "$ref": "#/$defs/element" }
+    }
+  },
+  "$defs": {
+    "address": {
+      "type": "object",
+      "required": ["protocol", "universe", "channel"],
+      "properties": {
+        "protocol": { "const": "Art-Net" },
+        "universe": { "type": "integer", "minimum": 0, "maximum": 32767 },
+        "channel": { "type": "integer", "minimum": 1, "maximum": 508 }
+      }
+    },
+    "route": {
+      "type": "object",
+      "required": ["route_id", "pixels", "bridge_input", "physical_output"],
+      "properties": {
+        "route_id": { "type": "string", "minLength": 1 },
+        "pixels": { "type": "integer", "minimum": 1 },
+        "bridge_input": { "$ref": "#/$defs/address" },
+        "physical_output": {
+          "type": "object",
+          "required": ["protocol", "ip", "port"],
+          "properties": {
+            "protocol": { "enum": ["Art-Net", "LMP3"] },
+            "ip": { "type": "string" },
+            "port": { "type": "integer", "minimum": 1, "maximum": 65535 }
+          }
+        }
+      }
+    },
+    "element": {
+      "type": "object",
+      "required": ["element_id", "route_id", "pixel_count", "visual", "bridge_input", "physical_output"],
+      "properties": {
+        "element_id": { "type": "string", "minLength": 1 },
+        "route_id": { "type": "string", "minLength": 1 },
+        "pixel_count": { "type": "integer", "minimum": 1 },
+        "visual": {
+          "type": "object",
+          "required": ["element_type", "pixel_mapping"],
+          "properties": {
+            "pixel_mapping": {
+              "type": "object",
+              "required": ["route_id", "route_offset_pixels", "route_pixel_indices"],
+              "properties": {
+                "route_id": { "type": "string" },
+                "route_offset_pixels": { "type": "integer", "minimum": 0 },
+                "route_pixel_indices": {
+                  "type": "array",
+                  "items": { "type": "integer", "minimum": 0 }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+

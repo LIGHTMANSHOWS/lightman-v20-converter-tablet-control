@@ -1,0 +1,53 @@
+LIGHTMAN V20 MINIMAL
+====================
+
+FUNCIÓN
+- Visualiza únicamente el último cuadro entregado por el puente a las salidas.
+- Las salidas físicas están siempre activas mientras esta aplicación está abierta.
+- Permite seleccionar una sola fuente: Resolume, xLights o Motion Tracking.
+- Incluye un TEST GENERAL a 25% que recorre blanco, rojo, verde y azul.
+- No incluye escenas, grabación, editor de patch ni opciones de salida.
+
+ANTES DE ABRIR
+1. Cierra cualquier otra versión de LIGHTMAN V20. Sólo una puede usar UDP 6454.
+2. Conecta esta PC al router del montaje.
+3. Si Windows pregunta, permite acceso únicamente en redes privadas.
+
+ENTRADAS ART-NET
+- Resolume: enviar a 127.0.0.2, puerto UDP 6454.
+- xLights: enviar a 127.0.0.3, puerto UDP 6454.
+- Motion Tracking desde otra PC: enviar a la IP LAN que muestra V20, UDP 6454.
+- Motion Tracking local para pruebas: 127.0.0.4, UDP 6454.
+
+CONTROL DESDE TABLET
+- Conecta la tablet al mismo router.
+- Abre la dirección TABLET que aparece arriba a la derecha en V20.
+- Puerto HTTP: 8780.
+- La página permite solamente seleccionar la fuente y activar/detener TEST GENERAL.
+- Usa esta página sólo dentro de la red privada del show.
+
+SALIDAS FIJAS
+- Banderas: 192.168.1.201–205 y 192.168.1.207, LMP3 UDP 7777, IDs 1–5 y 7.
+- Árbol: 192.168.1.91, Art-Net U0–14.
+- Lado derecho: 192.168.1.92, Art-Net U0–7.
+- Lado izquierdo + casa: 192.168.1.93, Art-Net U0–9.
+
+MAPEO VALIDADO
+- 52 elementos y 20 223 píxeles visibles.
+- El archivo Patch\SHOW-V20-MINIMAL.json es el manifiesto portátil V4 y contiene,
+  en un único documento, geometría, posiciones/giros, tabla visual→ruta y las 15
+  rutas de entrada/salida Art-Net/LMP3. El visualizador toma las correcciones de
+  orientación desde este JSON; no dependen de un orden implícito de los elementos.
+- Orden frontal de banderas: 1–2 superiores a la izquierda, 3–4 superiores a la derecha,
+  5 inferior izquierda y 6 inferior derecha.
+- Orientación visual: onda derecha en espejo horizontal; banderas 5 y 6 con contenido
+  girado 180° dentro del marco; ambos grupos de techo con RY 180°. No se alteran
+  los universos, las IP físicas ni las posiciones de los marcos.
+- A09 y B10: 99 píxeles; sus direcciones siguientes quedan continuas.
+- Casa: 400 LED físicos; visibles LED 48–352 (305 LED), sin línea de piso.
+- Las direcciones reservadas que no existen físicamente permanecen en negro.
+
+SEGURIDAD OPERATIVA
+- Seleccionar otra fuente detiene automáticamente TEST GENERAL.
+- Si V20 no puede reservar todas sus entradas Art-Net, queda en modo seguro:
+  no inicia el motor físico y bloquea el tester.

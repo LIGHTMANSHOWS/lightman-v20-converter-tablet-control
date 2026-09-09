@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.17763.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>LightmanV20Minimal</AssemblyName>
+    <Product>LIGHTMAN V20 Minimal</Product>
+    <Description>Visualizador exacto, selector de fuente, puente Art-Net/LMP3 y test general con control para tablet.</Description>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="LEEME-V20-MINIMAL.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4078.44" />
+    <Content Include="Web\index.html;Web\styles.css;Web\minimal.css;Web\app.js;Web\patch-map.js;Web\pixel-map.js;Web\banner-layout.js;Web\ceiling-layout.js;Web\neon-pixels.js;Web\scene-editor.js;Web\scrub-number.js;Web\OrbitControls.js;Web\three.module.min.js;Web\three.core.min.js;Web\tablet.html;Web\tablet.css;Web\tablet.js;Web\THREE-LICENSE.txt"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest"
+             ExcludeFromSingleFile="true" />
+    <Content Include="Patch\SHOW-V20-MINIMAL.json"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest"
+             ExcludeFromSingleFile="true" />
+    <Content Include="ShowControl\shows.json;ShowControl\CARGAR-EN-XSCHEDULE.md"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest"
+             ExcludeFromSingleFile="true" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="Integration\**\*.cs;AutoOutputSelfTest.cs;HouseSelfTest.cs;IngressSelfTest.cs;LiveSelfTest.cs;PixelSelfTest.cs;NdiReceiver.cs" />
+  </ItemGroup>
+
+  <Target Name="RemoveUnusedWebView2WpfReference" BeforeTargets="ResolveAssemblyReferences">
+    <ItemGroup>
+      <Reference Remove="$(NugetRoot)\lib_manual\net5.0-windows10.0.17763.0\Microsoft.Web.WebView2.Wpf.dll" />
+    </ItemGroup>
+  </Target>
+</Project>

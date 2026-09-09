@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <link rel="icon" href="data:,">
+  <title>LIGHTMAN V20 · Visualizador</title>
+  <script>document.documentElement.classList.add('minimal')</script>
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./minimal.css">
+</head>
+<body>
+  <main id="app">
+    <div id="viewport" aria-label="Stand LIGHTMAN con árbol central, 16 Neon Flex colgantes, seis banderas, dos paneles de ondas y contorno de casa"></div>
+
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark">LM</span>
+        <div>
+          <strong>LIGHTMAN V20 · SALIDA DEL SHOW</strong>
+          <small>VISUALIZACIÓN DIRECTA DEL PUENTE</small>
+        </div>
+      </div>
+      <div class="top-status">
+        <span id="mode-dot" class="status-dot"></span>
+        <span id="mode-label">Art-Net en vivo · esperando señal</span>
+      </div>
+    </header>
+
+    <aside class="control-panel" aria-label="Controles del simulador">
+      <section id="scene-editor">
+        <div class="section-heading"><span>EDITOR DE OBJETOS</span><span class="badge ok">RETABLO</span></div>
+        <label for="edit-object">Objeto / grupo</label>
+        <select id="edit-object"></select>
+        <p id="edit-info" class="help"></p>
+        <p class="help">EN VIVO: mantén clic en el número y mueve ↑ para aumentar, ↓ para disminuir. Detén el mouse para mantener; suelta para guardar. También acepta ← →. Shift: fino · Esc: cancelar.</p>
+        <p class="help">Posición del centro en metros · X derecha · Y arriba · Z frente.</p>
+        <div class="edit-grid">
+          <label>X<input id="edit-x" type="number" step="0.05" min="-50" max="50"></label>
+          <label>Y<input id="edit-y" type="number" step="0.05" min="-50" max="50"></label>
+          <label>Z<input id="edit-z" type="number" step="0.05" min="-50" max="50"></label>
+        </div>
+        <p class="help">Rotación adicional respecto al montaje original (°)</p>
+        <div class="edit-grid">
+          <label>RX<input id="edit-rx" type="number" step="1" min="-360" max="360"></label>
+          <label>RY<input id="edit-ry" type="number" step="1" min="-360" max="360"></label>
+          <label>RZ<input id="edit-rz" type="number" step="1" min="-360" max="360"></label>
+        </div>
+        <div class="button-row">
+          <label>Rotar solo eje<select id="edit-rotation-axis"><option value="rx">X</option><option value="ry" selected>Y</option><option value="rz">Z</option></select></label>
+          <label>Ángulo (°)<input id="edit-angle" class="axis-angle" type="number" min="-360" max="360" step="1" value="0"></label>
+        </div>
+        <div class="edit-grid">
+          <label>Cantidad<input id="edit-count" type="number" min="0" max="16" step="1" value="1"></label>
+          <label>Paso (m)<input id="edit-spacing" type="number" min="0" max="20" step="0.05" value="0.3"></label>
+          <label>Eje<select id="edit-axis"><option>X</option><option>Y</option><option>Z</option></select></label>
+        </div>
+        <div class="button-row"><button id="edit-apply" class="primary">Confirmar ajuste</button><button id="edit-undo">Deshacer</button></div>
+        <p class="help">Cantidad 0 oculta. Las copias LED son espejos visuales de la misma señal, no salidas nuevas.</p>
+        <details><summary>Agregar strip LED</summary>
+          <div class="edit-grid">
+            <label>Largo (m)<input id="strip-length" type="number" min="0.1" max="20" step="0.1" value="5"></label>
+            <label>Píxeles<input id="strip-pixels" type="number" min="2" max="1000" step="1" value="100"></label>
+            <label>Color<input id="strip-color" type="color" value="#baffb0"></label>
+          </div>
+          <button id="strip-add">+ Agregar strip vertical</button>
+          <p class="help">Cada píxel: cilindro de 5 cm × Ø2.5 cm. 100 px ocupan 5 m continuos. Sin patch: se prueba en Simulación local.</p>
+        </details>
+        <details><summary>Luz ambiental</summary>
+          <label for="ambient-intensity">Intensidad <output id="ambient-value">35%</output></label>
+          <input id="ambient-intensity" type="range" min="0" max="300" value="35">
+          <label>Color ambiental<input id="ambient-color" type="color" value="#cbdfff"></label>
+        </details>
+        <div class="button-row"><button id="edit-save">Guardar diseño</button><button id="edit-export">Exportar JSON</button></div>
+        <div class="button-row"><button id="edit-import">Importar JSON</button><button id="edit-reset">Diseño original</button></div>
+        <input id="edit-file" type="file" accept=".json,application/json" hidden>
+        <p id="edit-status" class="help" role="status">El patch original se conserva. Los cambios se guardan localmente.</p>
+      </section>
+      <section>
+        <div class="section-heading">
+          <span>MODO</span>
+          <span id="network-badge" class="badge">SIN SEÑAL</span>
+        </div>
+        <label for="mode">Fuente de datos</label>
+        <select id="mode">
+          <option value="simulation">Simulación local</option>
+          <option value="artnet" selected>Art-Net en vivo</option>
+        </select>
+        <label for="artnet-input">Entrada Art-Net</label>
+        <select id="artnet-input">
+          <option value="local">A · Local / software puente</option>
+          <option value="unity">B · Unity / otra PC por red</option>
+        </select>
+        <label for="artnet-input-ip">IP del emisor (vacío = Auto)</label>
+        <input id="artnet-input-ip" type="text" list="artnet-senders" placeholder="Ej.: 192.168.1.50" autocomplete="off">
+        <datalist id="artnet-senders"></datalist>
+        <button id="artnet-input-apply" type="button">Aplicar entrada / detectar emisor</button>
+        <p id="artnet-input-status" class="help">EXE: dos entradas por IP de origen, UDP 6454. Sin mezcla entre emisores.</p>
+        <p id="receiver-addresses" class="help">Desde Unity utiliza la IP LAN de esta PC; no localhost.</p>
+        <p id="mode-help" class="help">V19 slices / V20 A1-B1 · Art-Net UDP 6454 · U0–124.</p>
+        <div class="artnet-panel">
+          <div><span>Fixture banderas</span><strong>banderapyton · 60 × 42 RGB</strong></div>
+          <div><span>Patch</span><strong>V19 slices · V20 A1/B1 controlador · RGB</strong></div>
+          <div><span>Señal</span><strong id="artnet-signal">Esperando paquetes</strong></div>
+          <div><span>Fuente</span><strong id="artnet-source">-</strong></div>
+          <button id="export-patch" type="button">Exportar patch CSV</button>
+          <button id="install-resolume" class="primary install-button" type="button">Instalar en Resolume</button>
+          <small id="install-status" class="install-status">V19 guardado · 1920×1080 · posición y escala conservadas. A01 = antiguo B01; B01 = antiguo A01. Art-Net U0–124 → 127.0.0.2.</small>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-heading"><span>TELEVISOR · NDI</span><span class="badge ok">1 × 55″</span></div>
+        <label for="ndi-source">Fuente compartida</label>
+        <select id="ndi-source"><option value="">Sin fuente NDI</option></select>
+        <button id="ndi-refresh" type="button">Buscar fuentes NDI</button>
+        <p id="ndi-status" class="help">Buscando fuentes NDI…</p>
+      </section>
+
+      <section>
+        <div class="section-heading"><span>ENTRADA DEL PUENTE</span><span class="badge ok">A1 / B1</span></div>
+        <div class="metering-list">
+          <div><span>Banderas 1–6 primero</span><strong>U0–89 · 15 U por bandera · 15.120 px</strong></div>
+          <div><span>A01–A06 / A07–A12</span><strong>U90 C1 / U94 C1 · 600 + 600 px</strong></div>
+          <div><span>B01–B06 / B07–B12</span><strong>U98 C1 / U102 C1 · 600 + 600 px</strong></div>
+          <div><span>A1 · mismo inicio · P08</span><strong>Conexión horaria · tubos suben con giro antihorario</strong></div>
+          <div><span>B1 · mismo inicio · P07</span><strong>Conexión antihoraria · tubos suben con giro horario</strong></div>
+          <div><span>U106 C1</span><strong>Colgantes izquierdos · 800 px</strong></div>
+          <div><span>U111 C1</span><strong>Colgantes derechos · 800 px</strong></div>
+          <div><span>Soportes SC1–SC4</span><strong>Frente → fondo: 0 / 0,667 / 1,333 / 2 m</strong></div>
+          <div><span>U116 C1</span><strong>Ondas izquierdas · 400 px</strong></div>
+          <div><span>U119 C1</span><strong>Ondas derechas · 400 px</strong></div>
+          <div><span>U122 C1</span><strong>Contorno · 446 px</strong></div>
+          <div><span>Recepción</span><strong>IP LAN o loopback · UDP 6454</strong></div>
+          <div class="metering-total"><span>Activos</span><strong>20.366 px · 125 universos · base cero</strong></div>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-heading"><span>DISEÑO BASE</span><span class="badge ok">ORIGINAL</span></div>
+        <div class="metering-list">
+          <div><span>Banderas</span><strong>6 × 1.50 × 1.05 m · sin redimensionar</strong></div>
+          <div><span>B1 retablo</span><strong>1.05 × 1.50 m vertical · giro 45° en planta</strong></div>
+          <div><span>Altura B1</span><strong>Borde inferior 2.70 m · superior 4.20 m</strong></div>
+          <div><span>B2</span><strong>Vertical · misma orientación de B1</strong></div>
+          <div><span>B3</span><strong>Vertical con ruedas · 45° en sentido contrario</strong></div>
+          <div><span>Matriz por bandera</span><strong>60 × 42 · pitch 2.5 cm</strong></div>
+          <div><span>Estructura central</span><strong>24 aristas × 100 px · 5 m</strong></div>
+          <div><span>Techo</span><strong>Dos aguas · 5 m centro / 4 m lados</strong></div>
+          <div><span>Pendientes</span><strong>2 × 3.64 m · 15.95°</strong></div>
+          <div><span>Neon de techo</span><strong>16 × 5 m × 100 px · 4 anclajes / 3 caídas · RY 180° · escalón 9.80 cm</strong></div>
+          <div><span>Delineado frontal</span><strong>446 px · 20 px/m</strong></div>
+          <div><span>Banners de ondas</span><strong>2 × (2.00 × 2.00 m) · 4 ondas por lado</strong></div>
+          <div><span>Neón en banners</span><strong>8 × 5 m × 100 px · señal independiente por píxel</strong></div>
+          <div><span>Televisor</span><strong>1 × 55″ · posición central conservada · NDI</strong></div>
+          <div><span>Píxel de neón</span><strong>Cilindro 5 cm × Ø2.5 cm</strong></div>
+          <div><span>Asignación de salidas</span><strong>En el puente · sin relleno de 840 px</strong></div>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-heading"><span>EFECTO LOCAL</span><span id="play-state" class="badge ok">ACTIVO</span></div>
+        <label for="effect">Secuencia</label>
+        <select id="effect">
+          <option value="weave" selected>Tejido ascendente</option>
+          <option value="horizontal">Barrido horizontal</option>
+          <option value="vertical">Barrido vertical</option>
+          <option value="pulse">Pulso</option>
+          <option value="rainbow">Arcoíris 3D</option>
+          <option value="solid">Color sólido</option>
+          <option value="address">Prueba de direccionamiento</option>
+        </select>
+        <div class="button-row">
+          <button id="play" class="primary" type="button">Pausar</button>
+          <button id="blackout" type="button">Blackout</button>
+        </div>
+      </section>
+
+      <section>
+        <div class="range-label"><label for="brightness">Brillo</label><output id="brightness-value">100%</output></div>
+        <input id="brightness" type="range" min="0" max="150" value="100">
+        <div class="range-label"><label for="speed">Velocidad</label><output id="speed-value">1.00×</output></div>
+        <input id="speed" type="range" min="10" max="250" value="100">
+        <div class="color-row">
+          <label for="color-a">Color A<input id="color-a" type="color" value="#c8ffb0"></label>
+          <label for="color-b">Color B<input id="color-b" type="color" value="#31f0ff"></label>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-heading"><span>CAPAS</span><span class="subtle">Nuevo proyecto</span></div>
+        <label class="check"><input id="show-flags" type="checkbox" checked><span class="face-swatch flag"></span>6 banderas textile screen</label>
+        <label class="check"><input id="show-central" type="checkbox" checked><span class="face-swatch central"></span>Estructura LED central</label>
+        <label class="check"><input id="show-ceiling" type="checkbox" checked><span class="face-swatch ceiling"></span>16 Neon Flex colgantes</label>
+        <label class="check"><input id="show-outline" type="checkbox" checked><span class="face-swatch central"></span>Delineado frontal y ondas</label>
+        <label class="check"><input id="show-tvs" type="checkbox" checked><span class="face-swatch flag"></span>1 televisor NDI con rack</label>
+        <label class="check"><input id="show-structure" type="checkbox" checked><span>Estructura física del stand</span></label>
+      </section>
+
+      <section>
+        <div class="section-heading"><span>CÁMARA</span><span class="subtle">Arrastra para orbitar</span></div>
+        <div class="camera-grid">
+          <button data-camera="front" class="selected" type="button">Frontal</button>
+          <button data-camera="rear" type="button">Posterior</button>
+          <button data-camera="perspective" type="button">Perspectiva</button>
+          <button data-camera="side" type="button">Lateral</button>
+          <button data-camera="top" type="button">Superior</button>
+        </div>
+      </section>
+    </aside>
+
+    <section class="scene-meta" aria-live="polite">
+      <div><span>TECHO</span><strong>7.00 m · cumbrera 5.00 m · lados 4.00 m</strong></div>
+      <div><span>BANDERAS</span><strong>3 apiladas por lado · 1.50 × 1.05 m</strong></div>
+      <div><span>NEON FLEX</span><strong>16 colgantes (8 por lado) + 8 ondas de 5 m</strong></div>
+      <div id="selection"><span>SELECCIÓN</span><strong>Haz clic en un píxel</strong></div>
+    </section>
+
+    <div class="layer-key" aria-hidden="true">
+      <span><i class="key-flag"></i>Banderas P25</span>
+      <span><i class="key-central"></i>Estructura central</span>
+      <span><i class="key-ceiling"></i>Techo</span>
+    </div>
+
+    <div id="notice" class="notice" role="status" aria-live="polite"></div>
+    <div id="loading">Preparando visualizador V20…</div>
+  </main>
+    <script type="module" src="./app.js?revision=v20-minimal-4-portable-visual-bridge"></script>
+</body>
+</html>

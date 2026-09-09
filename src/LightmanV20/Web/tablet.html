@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#050a11">
+  <title>LIGHTMAN V20</title>
+  <link rel="stylesheet" href="/tablet.css">
+</head>
+<body>
+  <main>
+    <header>
+      <div class="mark">LM</div>
+      <div><h1>LIGHTMAN V20</h1><p>CONTROL DEL SHOW</p></div>
+      <div id="lamp" class="lamp" aria-hidden="true"></div>
+    </header>
+
+    <section class="status" aria-live="polite">
+      <span id="state">Conectando…</span>
+      <strong id="active">—</strong>
+      <small id="detail">V20 debe permanecer abierto</small>
+    </section>
+
+    <section class="scheduler">
+      <div class="section-title">
+        <h2>SHOWS XLIGHTS</h2>
+        <span id="scheduler-state" class="pill">XSCHEDULE</span>
+      </div>
+      <div id="shows" class="shows" aria-label="Shows disponibles"></div>
+      <div class="transport" role="group" aria-label="Transporte de xSchedule">
+        <button id="pause" class="secondary"><span>PAUSAR / CONTINUAR</span></button>
+        <button id="stop" class="secondary danger"><span>DETENER</span></button>
+      </div>
+      <p id="scheduler-detail" class="scheduler-detail">Abre xSchedule para usar el lanzador.</p>
+    </section>
+
+    <section>
+      <h2>FUENTE DE ENTRADA</h2>
+      <div class="sources" role="group" aria-label="Fuente de entrada">
+        <button data-source="resolume"><span>RESOLUME</span><small>127.0.0.2</small></button>
+        <button data-source="xlights"><span>XLIGHTS</span><small>127.0.0.3</small></button>
+        <button data-source="tracking"><span>TRACKING</span><small>RED</small></button>
+      </div>
+    </section>
+
+    <section>
+      <h2>PRUEBA</h2>
+      <button id="test" class="test"><span>TEST GENERAL</span><small>Todos los píxeles · RGB/Blanco · 25%</small></button>
+    </section>
+
+    <footer id="footer">Tablet → V20 → xSchedule / puente Art-Net</footer>
+  </main>
+  <script src="/tablet.js"></script>
+</body>
+</html>
