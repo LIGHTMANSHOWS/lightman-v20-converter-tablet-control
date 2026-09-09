@@ -25,6 +25,12 @@ playlists, test ni estado técnico.
 | `miser-brothers` | Fuego & Hielo | Experiencia visual |
 | `here-comes-santa-claus` | La Llegada de Santa | Navidad |
 | `sleigh-ride-8bit` | Trineo Pixel | Navidad |
+| `this-is-halloween` | Noche de Halloween | Especial de Halloween |
+| `light-em-up` | Enciende la Noche | Experiencia visual |
+| `baby-shark-edm` | Océano Eléctrico | Experiencia familiar |
+| `blinding-lights` | Ciudad de Neón | Experiencia visual |
+| `believer` | Fuerza Imparable | Experiencia visual |
+| `uptown-funk` | Ritmo en la Ciudad | Experiencia visual |
 
 Los IDs, playlists y rutas de archivos siguen siendo internos. Cambiar un
 `publicTitle`, `category` o `tagline` no modifica el vínculo con xSchedule.
@@ -48,8 +54,14 @@ Content-Type: application/json
 
 El servidor reconstruye la respuesta con una lista blanca. Aunque el origen de
 datos contenga información interna, sólo salen `id`, `publicTitle`, `category`,
-`tagline` y `activeExperienceId`. Un ID desconocido se rechaza antes de llegar a
-xSchedule; los errores internos se convierten en un mensaje genérico.
+`tagline`, `enabled` y `activeExperienceId`. Una experiencia con `enabled:false`
+permanece visible como `Próximamente`, pero el servidor rechaza su ejecución antes
+de llegar a xSchedule. Los errores internos se convierten en un mensaje genérico.
+
+Al 8 de septiembre de 2026, 08–10 están renderizados con audio utilizable. La 11
+no tiene secuencia; la 12 tiene un audio aproximadamente 1,54 s más corto que el
+render; y la 13 necesita la edición Radio Edit de 235,573 s. Por esa razón 11–13
+permanecen deshabilitados aunque sus tarjetas estén en el catálogo.
 
 ## Separación de superficies
 

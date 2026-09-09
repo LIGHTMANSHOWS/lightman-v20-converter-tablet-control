@@ -7,7 +7,13 @@ const FALLBACK_CATALOG = Object.freeze([
   { id: 'winter-wizard', publicTitle: 'Hechizo de Invierno', tagline: 'Magia invernal que recorre todo el espacio.', category: 'Arquitectura de luz' },
   { id: 'miser-brothers', publicTitle: 'Fuego & Hielo', tagline: 'Dos fuerzas opuestas frente a frente.', category: 'Experiencia visual' },
   { id: 'here-comes-santa-claus', publicTitle: 'La Llegada de Santa', tagline: 'La espera termina: Santa está por llegar.', category: 'Navidad' },
-  { id: 'sleigh-ride-8bit', publicTitle: 'Trineo Pixel', tagline: 'Un paseo navideño con alma de videojuego.', category: 'Navidad' }
+  { id: 'sleigh-ride-8bit', publicTitle: 'Trineo Pixel', tagline: 'Un paseo navideño con alma de videojuego.', category: 'Navidad' },
+  { id: 'this-is-halloween', publicTitle: 'Noche de Halloween', tagline: 'Una noche traviesa de sombras, color y personajes.', category: 'Especial de Halloween' },
+  { id: 'light-em-up', publicTitle: 'Enciende la Noche', tagline: 'Fuego, ritmo y energía para iluminar la oscuridad.', category: 'Experiencia visual' },
+  { id: 'baby-shark-edm', publicTitle: 'Océano Eléctrico', tagline: 'Una fiesta submarina para bailar en familia.', category: 'Experiencia familiar' },
+  { id: 'blinding-lights', publicTitle: 'Ciudad de Neón', tagline: 'Un viaje nocturno entre destellos y velocidad.', category: 'Experiencia visual' },
+  { id: 'believer', publicTitle: 'Fuerza Imparable', tagline: 'Golpes de luz que convierten la energía en fuerza.', category: 'Experiencia visual' },
+  { id: 'uptown-funk', publicTitle: 'Ritmo en la Ciudad', tagline: 'Brillo, actitud y ritmo para encender la ciudad.', category: 'Experiencia visual' }
 ]);
 
 const VISUALS = Object.freeze([
@@ -23,6 +29,8 @@ const VISUALS = Object.freeze([
 const CATEGORY_ORDER = Object.freeze([
   'Arquitectura de luz',
   'Experiencia visual',
+  'Experiencia familiar',
+  'Especial de Halloween',
   'Navidad'
 ]);
 
@@ -133,7 +141,7 @@ function createExperienceCard(item, index) {
   card.classList.toggle('is-unavailable', !item.enabled || state.unavailable);
   card.classList.toggle('is-busy', state.busyId === item.id);
   card.classList.toggle('is-active', state.activeId === item.id);
-  card.setAttribute('aria-label', `${state.busyId === item.id ? 'Iniciando' : 'Vivir'} ${item.publicTitle}. ${item.tagline}`);
+  card.setAttribute('aria-label', `${state.busyId === item.id ? 'Iniciando' : item.enabled ? 'Vivir' : 'Próximamente'} ${item.publicTitle}. ${item.tagline}`);
 
   const top = document.createElement('span');
   top.className = 'card-top';
@@ -240,7 +248,10 @@ async function loadExperiences() {
     state.activeId = cleanText(reportedActiveId) || null;
     state.category = 'Todas';
     setAvailability('ready', 'Listo para elegir');
-    setActionStatus(`${state.experiences.length} ${state.experiences.length === 1 ? 'experiencia disponible' : 'experiencias disponibles'}`);
+    const readyCount = state.experiences.filter(item => item.enabled).length;
+    const upcomingCount = state.experiences.length - readyCount;
+    const readyLabel = `${readyCount} ${readyCount === 1 ? 'experiencia lista' : 'experiencias listas'}`;
+    setActionStatus(upcomingCount > 0 ? `${readyLabel} · ${upcomingCount} próximamente` : readyLabel);
   } catch {
     state.unavailable = true;
     state.experiences = FALLBACK_CATALOG.map((item, index) => ({ ...item, enabled: false, visualIndex: index }));

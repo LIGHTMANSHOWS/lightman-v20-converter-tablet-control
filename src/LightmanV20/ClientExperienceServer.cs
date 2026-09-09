@@ -165,7 +165,7 @@ internal sealed class ClientExperienceServer : IDisposable
                     // solo el ID canonico que ya aparecia en el catalogo publico.
                     var experience = catalog.Experiences.FirstOrDefault(item =>
                         item.Id.Equals(id, StringComparison.Ordinal));
-                    if (experience is null)
+                    if (experience is null || !experience.Enabled)
                     {
                         await JsonAsync(stream, 400, new { ok = false, error = "Experiencia no disponible." }, token).ConfigureAwait(false);
                         return;
@@ -267,8 +267,7 @@ internal sealed class ClientExperienceServer : IDisposable
         {
             if (item.ValueKind != JsonValueKind.Object) continue;
             if (TryBoolean(item, "publicEnabled", out bool publicEnabled) && !publicEnabled) continue;
-            if (TryBoolean(item, "clientVisible", out bool clientVisible) && !clientVisible) continue;
-            if (TryBoolean(item, "enabled", out bool enabled) && !enabled) continue;
+            bool enabled = !TryBoolean(item, "enabled", out bool configuredEnabled) || configuredEnabled;
 
             string id = StringProperty(item, "id");
             // "Title" pertenece al control interno. Solo PublicTitle cruza el
@@ -280,7 +279,8 @@ internal sealed class ClientExperienceServer : IDisposable
                 id,
                 LimitText(publicTitle, 80),
                 LimitText(StringProperty(item, "category"), 40),
-                LimitText(StringProperty(item, "tagline"), 160)));
+                LimitText(StringProperty(item, "tagline"), 160),
+                enabled));
         }
 
         string? activeId = null;
@@ -470,6 +470,6 @@ internal sealed class ClientExperienceServer : IDisposable
         _stop.Dispose();
     }
 
-    private sealed record PublicExperience(string Id, string PublicTitle, string Category, string Tagline);
+    private sealed record PublicExperience(string Id, string PublicTitle, string Category, string Tagline, bool Enabled);
     private sealed record PublicCatalog(IReadOnlyList<PublicExperience> Experiences, string? ActiveExperienceId);
 }

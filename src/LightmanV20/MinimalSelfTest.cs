@@ -404,6 +404,15 @@ internal static class MinimalSelfTest
         string playedShow = "";
         bool testedValue = false;
         string web = Path.Combine(AppContext.BaseDirectory, "Web");
+        using (var catalog = XScheduleController.Load(Path.Combine(AppContext.BaseDirectory, "ShowControl", "shows.json")))
+        {
+            Check(catalog.Shows.Count == 13 && catalog.Shows.Count(show => show.Enabled) == 10,
+                "catálogo V20 contiene diez experiencias listas y tres próximas");
+            Check(catalog.Shows.Skip(7).Select(show => show.Id).SequenceEqual(new[]
+                { "this-is-halloween", "light-em-up", "baby-shark-edm", "blinding-lights", "believer", "uptown-funk" }) &&
+                  catalog.Shows.Skip(7).All(show => show.ClientVisible && !string.IsNullOrWhiteSpace(show.PublicTitle)),
+                "seis proyectos nuevos tienen ID estable y nombre comercial");
+        }
         using (var server = new TabletServer(web, 0, () => new { source = "resolume", generalTest = false },
                    value => { selectedValue = value; Interlocked.Increment(ref selected); return true; },
                    value => { testedValue = value; Interlocked.Increment(ref tested); return true; },
@@ -471,6 +480,15 @@ internal static class MinimalSelfTest
                 },
                 new
                 {
+                    id = "experiencia-en-preparacion",
+                    publicTitle = "Próximamente",
+                    category = "Especial",
+                    tagline = "Esta experiencia todavía no está lista.",
+                    publicEnabled = true,
+                    enabled = false,
+                },
+                new
+                {
                     id = "experiencia-oculta",
                     publicTitle = "Nombre que no debe publicarse",
                     category = "Interna",
@@ -520,14 +538,19 @@ internal static class MinimalSelfTest
                 var publicRoot = publicJson.RootElement;
                 var publicExperiences = publicRoot.GetProperty("experiences").EnumerateArray().ToArray();
                 var expectedPublicFields = new HashSet<string>(
-                    ["id", "publicTitle", "category", "tagline"], StringComparer.Ordinal);
-                Check(publicExperiences.Length == 2 &&
+                    ["id", "publicTitle", "category", "tagline", "enabled"], StringComparer.Ordinal);
+                Check(publicExperiences.Length == 3 &&
                       publicExperiences[0].GetProperty("id").GetString() == "ritmo-de-luz" &&
                       publicExperiences[0].GetProperty("publicTitle").GetString() == "Ritmo de Luz" &&
+                      publicExperiences[0].GetProperty("enabled").GetBoolean() &&
                       publicExperiences[0].EnumerateObject().Select(p => p.Name).ToHashSet(StringComparer.Ordinal)
                           .SetEquals(expectedPublicFields) &&
+                      publicExperiences[2].GetProperty("id").GetString() == "experiencia-en-preparacion" &&
+                      !publicExperiences[2].GetProperty("enabled").GetBoolean() &&
+                      publicExperiences[2].EnumerateObject().Select(p => p.Name).ToHashSet(StringComparer.Ordinal)
+                          .SetEquals(expectedPublicFields) &&
                       publicRoot.GetProperty("activeExperienceId").GetString() == "ritmo-de-luz",
-                    "API cliente publica sólo el contrato comercial y el ID activo");
+                    "API cliente publica el contrato comercial de cinco campos, disponibilidad e ID activo");
             }
             string[] privateFields = ["playlist", "sequence", "audio", "note", "source", "sender", "endpoints", "ip", "error"];
             Check(privateFields.All(field => !publicPayload.Contains($"\"{field}\"", StringComparison.OrdinalIgnoreCase)) &&
@@ -544,8 +567,11 @@ internal static class MinimalSelfTest
                 new StringContent("{\"id\":\"no-existe\"}", Encoding.UTF8, "application/json")).GetAwaiter().GetResult();
             using var hiddenExperience = clientHttp.PostAsync("/api/experience/play",
                 new StringContent("{\"id\":\"experiencia-oculta\"}", Encoding.UTF8, "application/json")).GetAwaiter().GetResult();
-            Check((int)unknownExperience.StatusCode == 400 && (int)hiddenExperience.StatusCode == 400 && clientPlayCalls == 1,
-                "portal cliente rechaza IDs desconocidos u ocultos sin ejecutar acciones");
+            using var disabledExperience = clientHttp.PostAsync("/api/experience/play",
+                new StringContent("{\"id\":\"experiencia-en-preparacion\"}", Encoding.UTF8, "application/json")).GetAwaiter().GetResult();
+            Check((int)unknownExperience.StatusCode == 400 && (int)hiddenExperience.StatusCode == 400 &&
+                  (int)disabledExperience.StatusCode == 400 && clientPlayCalls == 1,
+                "portal cliente rechaza IDs desconocidos, ocultos o deshabilitados sin ejecutar acciones");
 
             using var failedExperience = clientHttp.PostAsync("/api/experience/play",
                 new StringContent("{\"id\":\"experiencia-con-error\"}", Encoding.UTF8, "application/json")).GetAwaiter().GetResult();

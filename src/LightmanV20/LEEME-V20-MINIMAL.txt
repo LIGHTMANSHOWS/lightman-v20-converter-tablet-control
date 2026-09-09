@@ -28,6 +28,9 @@ DOS SERVIDORES PARA TABLET
 - Ambas direcciones aparecen arriba a la derecha en V20.
 - Ninguno de los dos puertos debe exponerse a Internet; úsalos sólo en la red
   privada del show.
+- Catálogo actual: 13 experiencias. Diez están habilitadas y tres aparecen como
+  PRÓXIMAMENTE hasta completar secuencia/audio: Ciudad de Neón, Fuerza Imparable
+  y Ritmo en la Ciudad.
 
 SALIDAS FIJAS
 - Banderas: 192.168.1.201–205 y 192.168.1.207, LMP3 UDP 7777, IDs 1–5 y 7.

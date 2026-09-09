@@ -93,6 +93,84 @@
       "audio": "%USERPROFILE%/Desktop/shows xlights/07_SLEIGH_RIDE_8BIT_CORTA_LIGHTMAN_V20/Audio/03_SLEIGH_RIDE_8BIT_CORTA_LIGHTMAN_V20.wav",
       "enabled": true,
       "note": "Render nativo xLights 2026.17"
+    },
+    {
+      "id": "this-is-halloween",
+      "title": "THIS IS HALLOWEEN",
+      "publicTitle": "Noche de Halloween",
+      "category": "Especial de Halloween",
+      "tagline": "Una noche traviesa de sombras, color y personajes.",
+      "clientVisible": true,
+      "playlist": "08 · THIS IS HALLOWEEN",
+      "sequence": "%USERPROFILE%/Desktop/shows xlights/08_THIS_IS_HALLOWEEN_LIGHTMAN/08_THIS_IS_HALLOWEEN_LIGHTMAN.fseq",
+      "audio": "%USERPROFILE%/Desktop/shows xlights/08_THIS_IS_HALLOWEEN_LIGHTMAN/Audio/nightmareBeforeChristmasWithIntro.mp3",
+      "enabled": true,
+      "note": "Render nativo completo; revisión visual final pendiente"
+    },
+    {
+      "id": "light-em-up",
+      "title": "MY SONGS KNOW WHAT YOU DID IN THE DARK",
+      "publicTitle": "Enciende la Noche",
+      "category": "Experiencia visual",
+      "tagline": "Fuego, ritmo y energía para iluminar la oscuridad.",
+      "clientVisible": true,
+      "playlist": "09 · MY SONGS KNOW WHAT YOU DID IN THE DARK",
+      "sequence": "%USERPROFILE%/Desktop/shows xlights/09_MY_SONGS_KNOW_WHAT_YOU_DID_IN_THE_DARK_LIGHTMAN/09_MY_SONGS_KNOW_WHAT_YOU_DID_IN_THE_DARK_LIGHTMAN.fseq",
+      "audio": "%USERPROFILE%/Desktop/shows xlights/09_MY_SONGS_KNOW_WHAT_YOU_DID_IN_THE_DARK_LIGHTMAN/Audio/02 - My Songs Know What You Did In The Dark (Light Em Up).mp3",
+      "enabled": true,
+      "note": "Render nativo completo; revisión visual final pendiente"
+    },
+    {
+      "id": "baby-shark-edm",
+      "title": "BABY SHARK EDM",
+      "publicTitle": "Océano Eléctrico",
+      "category": "Experiencia familiar",
+      "tagline": "Una fiesta submarina para bailar en familia.",
+      "clientVisible": true,
+      "playlist": "10 · BABY SHARK EDM",
+      "sequence": "%USERPROFILE%/Desktop/shows xlights/10_BABY_SHARK_EDM_LIGHTMAN/10_BABY_SHARK_EDM_LIGHTMAN.fseq",
+      "audio": "%USERPROFILE%/Desktop/shows xlights/10_BABY_SHARK_EDM_LIGHTMAN/Audio/Baby Shark EDM.mp3",
+      "enabled": true,
+      "note": "Render nativo completo; revisión visual final pendiente"
+    },
+    {
+      "id": "blinding-lights",
+      "title": "BLINDING LIGHTS",
+      "publicTitle": "Ciudad de Neón",
+      "category": "Experiencia visual",
+      "tagline": "Un viaje nocturno entre destellos y velocidad.",
+      "clientVisible": true,
+      "playlist": "11 · BLINDING LIGHTS",
+      "sequence": "%USERPROFILE%/Desktop/shows xlights/11_BLINDING_LIGHTS_LIGHTMAN/11_BLINDING_LIGHTS_LIGHTMAN.fseq",
+      "audio": "%USERPROFILE%/Desktop/shows xlights/11_BLINDING_LIGHTS_LIGHTMAN/The Weeknd - Blinding Lights (Official Audio).mp3",
+      "enabled": false,
+      "note": "Próximamente: todavía no existe XSQ/FSEQ adaptado"
+    },
+    {
+      "id": "believer",
+      "title": "BELIEVER",
+      "publicTitle": "Fuerza Imparable",
+      "category": "Experiencia visual",
+      "tagline": "Golpes de luz que convierten la energía en fuerza.",
+      "clientVisible": true,
+      "playlist": "12 · BELIEVER",
+      "sequence": "%USERPROFILE%/Desktop/shows xlights/12_BELIEVER_XATW_2024_LIGHTMAN/12_BELIEVER_XATW_2024_LIGHTMAN.fseq",
+      "audio": "%USERPROFILE%/Desktop/shows xlights/12_BELIEVER_XATW_2024_LIGHTMAN/Imagine Dragons - Believer (Audio).mp3",
+      "enabled": false,
+      "note": "Próximamente: el audio actual dura aproximadamente 1,54 s menos que la secuencia"
+    },
+    {
+      "id": "uptown-funk",
+      "title": "UPTOWN FUNK",
+      "publicTitle": "Ritmo en la Ciudad",
+      "category": "Experiencia visual",
+      "tagline": "Brillo, actitud y ritmo para encender la ciudad.",
+      "clientVisible": true,
+      "playlist": "13 · UPTOWN FUNK",
+      "sequence": "%USERPROFILE%/Desktop/shows xlights/13_UPTOWN_FUNK_XATW_2025_LIGHTMAN/13_UPTOWN_FUNK_XATW_2025_LIGHTMAN.fseq",
+      "audio": "%USERPROFILE%/Desktop/shows xlights/13_UPTOWN_FUNK_XATW_2025_LIGHTMAN/Mark Ronson - Uptown Funk (Official Audio) ft. Bruno Mars.mp3",
+      "enabled": false,
+      "note": "Próximamente: se necesita la edición Radio Edit de 235,573 s"
     }
   ]
 }

@@ -14,3 +14,7 @@
 - Catálogo de siete experiencias con nombres comerciales y categorías.
 - Separación estricta: el cliente no recibe IPs, rutas, playlists ni controles
   técnicos del operador.
+- Seis proyectos detectados e incorporados al catálogo comercial: 08–13.
+- `Noche de Halloween`, `Enciende la Noche` y `Océano Eléctrico` quedan habilitados;
+  `Ciudad de Neón`, `Fuerza Imparable` y `Ritmo en la Ciudad` se muestran como
+  `Próximamente` hasta completar sus archivos sincronizados.
